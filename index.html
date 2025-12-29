@@ -1,0 +1,2761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Attendance Names</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@24..48,100..700,0..1">
+    <link rel="stylesheet" href="navbar.css">
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <a href="index.html" class="active"><span class="material-symbols-outlined">group</span></a>
+        <a href="report.html"><span class="material-symbols-outlined">article</span></a>
+    </nav>
+    
+    <div class="btn-signature-paper">
+        <a href="signature.html"><span class="material-symbols-outlined">edit_square</span></a>
+    </div>
+    
+    <!-- ORGANIZATION SELECTION MODAL -->
+<div id="orgModal" class="modal org-modal">
+    <div class="modal-content org-modal-content">
+        <h3>Pilih Organisasi</h3>
+        <p class="org-subtitle">Pilih salah satu organisasi untuk melanjutkan</p>
+        
+        <div class="org-options">
+            <button class="org-btn" data-org="MPS">
+                MPS
+            </button>
+            <button class="org-btn" data-org="OSIS">
+                OSIS
+            </button>
+            <button class="org-btn" data-org="AMI">
+                AMI
+            </button>
+            <button class="org-btn" data-org="DA">
+                DA
+            </button>
+        </div>
+    </div>
+</div>
+
+
+    <!-- Hamburger Menu Button -->
+    <button id="hamburger-menu" class="btn-hamburger-menu">
+        <span class="material-symbols-outlined">menu</span>
+    </button>
+
+    <!-- Dropdown Menu -->
+    <div id="dropdown-menu" class="dropdown-menu">
+        <div class="dropdown-item" data-value="one-page">One Page</div>
+        <div class="dropdown-item" data-value="two-page">Two Pages</div>
+<div class="dropdown-item" id="change-org-item">
+    Change Organization >
+</div>
+    </div>
+
+    <section class="names-form-section">
+        <h2>Manage Attendance Names</h2>
+                    <div class="position-toggle-section">
+                <div class="toggle-container">
+                    <span class="toggle-icon material-symbols-outlined active" id="leftIcon">chevron_left</span>
+                    <span class="toggle-label" id="toggleLabel"></span>
+                    <span class="toggle-icon material-symbols-outlined" id="rightIcon">chevron_right</span>
+                </div>
+            </div>
+        <form id="namesForm" class="names-form">
+            <!-- Title and Info Sections - will be hidden when right icon is active -->
+            <div class="header-fields-container">
+                <div class="titles-section">
+                    <div class="title-input-group">
+                        <input type="text" id="title1" class="title-input" maxlength="50" placeholder="PRESENSI KEHADIRAN PESERTA">
+                    </div>
+                    <div class="title-input-group">
+                        <input type="text" id="title2" class="title-input" maxlength="50" placeholder="NAMA PROGRAM KERJA | Example: AMI CURIOUS">
+                    </div>
+                    <div class="title-input-group">
+                        <input type="text" id="title3" class="title-input" maxlength="50" placeholder="MASA BAKTI TAHUN/TAHUN | Example: MASA BAKTI 2025/2026">
+                    </div>
+                </div>
+                <div class="info-section">
+                    <div class="info-input-group">
+                        <input type="text" id="waktu" class="info-input" maxlength="50" placeholder="Waktu | Example: 16.00—17.00 WIB">
+                    </div>
+                    <div class="info-input-group">
+                        <input type="text" id="tempat" class="info-input" maxlength="50" placeholder="Tempat | Example: ruang kelas xi 5">
+                    </div>
+                    <div class="info-input-group">
+                        <input type="text" id="keterangan" class="info-input" maxlength="100" placeholder="Keterangan | Example: syura fiksasi AMI Curious">
+                    </div>
+                    <div class="info-input-group">
+                        <label for="tanggalPresensi"></label>
+                        <input type="date" id="tanggalPresensi" class="info-input" style="margin-top: 10px; background: transparent; border: 2px solid #000000;">
+                    </div>
+                </div>
+            </div>
+            
+            <table border="1" class="names-table">
+                <thead>
+                    <tr>
+                        <th>No.</th>
+                        <th>Name</th>
+                    </tr>
+                </thead>
+                <tbody id="namesTableBody">
+                    <!-- Dynamically populated by JavaScript -->
+                </tbody>
+            </table>
+        </form>
+    </section>
+
+    <style>
+    * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+        :root {
+            --primary: #736b23;
+            --secondary: #9ade24;
+            --accent: #f5de3e;
+            --light: #ecf0f1;
+            --dark: #0d0a06;
+            --text: #333;
+            --text-light: #777;
+            --gold: #FFD700;
+            --silver: #C0C0C0;
+            --bronze: #CD7F32;
+        }
+
+/* Sync Notification Styles */
+.sync-notification {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    background: var(--secondary);
+    color: white;
+    z-index: 10000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    animation: slideInRight 0.3s ease, fadeOut 0.3s ease 2.7s;
+}
+
+.sync-notification.error {
+    background: #ff6b6b;
+}
+
+.sync-notification.success {
+    background: #6bcf7f;
+}
+
+.sync-notification.warning {
+    background: #ffd93d;
+    color: #333;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+/* Sync Status Indicator */
+#sync-status-indicator {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    z-index: 9999;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+}
+
+#sync-status-indicator:hover {
+    transform: scale(1.2);
+}
+
+/* Manual Sync Button */
+.btn-sync {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    background: var(--secondary);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    cursor: pointer;
+    z-index: 999;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.btn-sync:hover {
+    background: var(--primary);
+    transform: scale(1.1);
+}
+
+.btn-sync.syncing {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    color: #FFFFFF;
+    background-color: white;
+    margin: 0;
+    overflow-x: hidden;
+    font-weight: 400;
+}
+
+body.modal-open {
+    overflow: hidden;
+}
+
+        .btn-signature-paper a {
+            position: fixed;
+            right: 70px;
+            padding: 22px 18px 7px 7px;
+            cursor: none;
+            background: transparent;
+            border: none;
+            z-index: 1001;
+            color: var(--text);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-signature-paper a:hover {
+            color: var(--secondary);
+        }
+
+/* Organization Change Modal */
+.org-change-modal {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    backdrop-filter: blur(5px);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.4s ease;
+}
+
+.org-change-modal.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.org-change-modal-content {
+    background: white;
+    padding: 40px 30px;
+    border-radius: 16px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+    text-align: center;
+    max-width: 420px;
+    width: 92%;
+    transform: scale(0.8);
+    animation: modalPop 0.5s ease-out forwards;
+}
+
+.org-change-modal-content h3 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 8px;
+}
+
+.org-change-subtitle {
+    color: var(--text-light);
+    margin-bottom: 30px;
+    font-size: 14px;
+}
+
+.org-change-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.org-change-btn {
+    padding: 20px 12px;
+    background: white;
+    border: none;
+    border-radius: 14px;
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--text);
+    cursor: none;
+}
+
+.org-change-btn:hover {
+    background: var(--secondary);
+    color: white;
+    border-color: var(--secondary);
+    box-shadow: 0 12px 25px rgba(154,222,36,0.35);
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+    .org-change-options { grid-template-columns: 1fr; }
+    .org-change-modal-content { padding: 35px 25px; }
+}
+
+.org-modal {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    backdrop-filter: blur(5px);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.4s ease;
+}
+
+.org-modal.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.org-modal-content {
+    background: white;
+    padding: 40px 30px;
+    border-radius: 16px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+    text-align: center;
+    max-width: 420px;
+    width: 92%;
+}
+
+.org-modal-content h3 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 8px;
+}
+
+.org-subtitle {
+    color: var(--text-light);
+    margin-bottom: 30px;
+    font-size: 14px;
+}
+
+.org-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.org-btn {
+    padding: 20px 12px;
+    background: white;
+    border: none;
+    border-radius: 14px;
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--text);
+    cursor: none;
+}
+
+.org-btn:hover {
+    background: var(--secondary);
+    color: white;
+    border-color: var(--secondary);
+    box-shadow: 0 12px 25px rgba(154,222,36,0.35);
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+    .org-options { grid-template-columns: 1fr; }
+    .org-modal-content { padding: 35px 25px; }
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .org-options {
+        grid-template-columns: 1fr;
+    }
+    .org-modal-content {
+        padding: 30px 20px;
+    }
+}
+
+.names-form-section {
+    padding: 80px 20px;
+    max-width: 600px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.names-form-section h2 {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 700;
+    font-size: 2rem;
+    color: var(--text);
+    margin-bottom: 20px;
+    margin-top: 20px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.names-form-section p {
+    font-size: 10px;
+    color: #FFFFFF;
+    margin-bottom: 30px;
+}
+
+.names-form {
+    background-color: #FFFFFF;
+    padding: 40px;
+    border-radius: 10px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.names-form:hover {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.names-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.names-table th, .names-table td {
+    padding: 10px;
+    text-align: left;
+    font-size: 14px;
+    color: var(--text);
+}
+
+.names-table th {
+    background-color: #fff;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.names-table td {
+    background-color: #FFFFFF;
+}
+
+.names-table input {
+    width: 100%;
+    padding: 8px;
+    border-radius: 5px;
+    font-size: 14px;
+    font-family: 'Poppins', sans-serif;
+    color: var(--text);
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.names-table input:focus {
+    outline: none;
+}
+
+.titles-section {
+    padding: 0 0 15px;
+}
+
+.title-input-group {
+    margin-top: 10px;
+    text-align: left;
+}
+
+.title-input-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.title-input {
+    width: 100%;
+    padding: 8px;
+    border-radius: 5px;
+    font-size: 14px;
+    font-family: 'Poppins', sans-serif;
+    color: var(--text);
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.title-input:focus {
+    outline: none;
+}
+
+.info-section {
+    padding: 0 0 30px;
+}
+
+.info-input-group {
+    margin-top: 10px;
+    text-align: left;
+}
+
+.info-input-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.info-input {
+    width: 100%;
+    padding: 8px;
+    border-radius: 5px;
+    font-size: 14px;
+    font-family: 'Poppins', sans-serif;
+    color: var(--text);
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.info-input:focus {
+    outline: none;
+}
+
+@media (max-width: 768px) {
+    .names-form-section h2 {
+        font-size: 2rem;
+    }
+
+    .names-form-section h3 {
+        font-size: 1.3rem;
+    }
+
+    .names-form {
+        padding: 20px;
+    }
+
+    .names-table th, .names-table td {
+        font-size: 14px;
+        padding: 8px;
+    }
+
+    .title-input-group label {
+        font-size: 14px;
+    }
+
+    .title-input {
+        font-size: 14px;
+    }
+
+}
+
+/* Position Toggle - Fixed Position on Left Side */
+.position-toggle-section {
+    position: fixed;
+    top: 20px;
+    left: 30px; /* Left side positioning */
+    right: auto;
+    transform: none;
+    z-index: 1001; /* Same as hamburger menu */
+    background: transparent;
+    padding: 0;
+    box-shadow: none;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    margin: 0;
+}
+
+.position-toggle-section .toggle-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    background: transparent;
+}
+
+.position-toggle-section .toggle-icon {
+    font-size: 24px;
+    cursor: none;
+    padding: 8px;
+    border-radius: 50%;
+    color: var(--text);
+    background: transparent;
+    margin-top: -5px;
+}
+
+.position-toggle-section .toggle-icon.active {
+    color: var(--text);
+}
+
+.position-toggle-section .toggle-icon.inactive {
+                visibility: hidden;
+                opacity: 0;
+                pointer-events: none;
+            }
+
+.position-toggle-section .toggle-label {
+    font-weight: 600;
+    color: var(--text);
+    font-size: 14px;
+    margin: 0;
+    margin-top: -5px;
+}
+
+/* Update form section padding to account for fixed elements */
+.names-form-section {
+    padding: 80px 20px 20px;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+    .position-toggle-section {
+        top: 15px;
+        left: 15px;
+    }
+    
+    .position-toggle-section .toggle-container {
+        padding: 8px;
+        gap: 8px;
+    }
+    
+    .position-toggle-section .toggle-icon {
+        font-size: 20px;
+        padding: 6px;
+    }
+    
+    .position-toggle-section .toggle-label {
+        font-size: 12px;
+    }
+    
+    .btn-hamburger-menu {
+        top: 15px;
+        right: 15px;
+        padding: 8px;
+    }
+    
+    .names-form-section {
+        padding: 70px 15px 15px;
+    }
+}
+
+        .dropdown-item.active {
+            background: var(--secondary);
+            color: var(--light);
+        }
+        /* Hamburger Menu Styles */
+        .btn-hamburger-menu {
+            position: fixed;
+            top: 15px;
+            right: 20px;
+            padding: 7px;
+            border-radius: 5px;
+            cursor: none;
+            background: transparent;
+            border: none;
+            z-index: 1001;
+            color: var(--text);
+            transition: all 0.3s ease;
+        }
+
+        .btn-hamburger-menu:hover {
+            color: var(--secondary);
+        }
+
+        .dropdown-menu {
+            position: fixed;
+            top: 60px;
+            right: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            z-index: 1002;
+            display: none;
+            min-width: 150px;
+            overflow: hidden;
+            animation: dropdownFadeIn 0.2s ease-out;
+        }
+
+        @keyframes dropdownFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .dropdown-item {
+            padding: 12px 16px;
+            cursor: none;
+            color: var(--text);
+            font-family: 'Poppins', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .dropdown-item:hover {
+            background: var(--secondary);
+            color: var(--light);
+        }
+                .dropdown-item:active {
+            background: var(--secondary);
+            color: var(--light);
+        }
+
+        /*.dropdown-item.active {
+            background: var(--secondary);
+            color: var(--light);
+        }*/
+
+        /* Overlay to close dropdown when clicking outside */
+        .dropdown-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            z-index: 1000;
+            display: none;
+        }
+
+        /* Update existing styles for better spacing */
+        .names-form-section {
+            padding: 80px 20px;
+        }
+                .btn-delete,
+                .btn-cancel {
+                    padding: 12px 24px;
+                    border: none;
+                    border-radius: 6px;
+                    font-size: 14px;
+                    font-weight: bold;
+                    cursor: none;
+                    transition: all 0.2s ease;
+                    font-family: 'Times New Roman', Times, serif;
+                }
+                
+                .btn-delete {
+                    background-color: white;
+                    color: red;
+                }
+                
+                .btn-delete:hover {
+                    background-color: red;
+                    color: white;
+                }
+                
+                .btn-cancel {
+                    background-color: white;
+                    color: black;
+                }
+                
+                .btn-cancel:hover {
+                    background-color: black;
+                    color: white;
+                }
+                /* firebase-ui.css - CSS untuk Firebase UI elements */
+/* Sync Status Indicator */
+#sync-status-indicator {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    z-index: 9999;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+}
+
+#sync-status-indicator:hover {
+    transform: scale(1.2);
+}
+
+#sync-status-indicator.online {
+    background: #6bcf7f;
+}
+
+#sync-status-indicator.offline {
+    background: #ff6b6b;
+}
+
+#sync-status-indicator.pending {
+    background: #ffd93d;
+    animation: pulse 1s infinite;
+}
+
+/* Sync Button */
+#firebase-sync-button {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    background: var(--secondary);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    cursor: pointer;
+    z-index: 999;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+#firebase-sync-button:hover {
+    background: var(--primary);
+    transform: scale(1.1);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+}
+
+#firebase-sync-button.syncing {
+    animation: spin 1s linear infinite;
+}
+
+/* Auth Status Indicator */
+#auth-status-indicator {
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    padding: 5px 10px;
+    background: var(--secondary);
+    color: white;
+    border-radius: 4px;
+    font-size: 11px;
+    z-index: 999;
+    font-family: 'Poppins', sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Organization Indicator */
+#firebase-org-indicator {
+    position: fixed;
+    top: 15px;
+    left: 120px;
+    padding: 5px 10px;
+    background: rgba(255,255,255,0.9);
+    color: var(--text);
+    border-radius: 4px;
+    font-size: 12px;
+    z-index: 999;
+    font-family: 'Poppins', sans-serif;
+    display: flex;
+    align-items: center;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+/* Notifications */
+.firebase-notification {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    background: white;
+    color: #333;
+    z-index: 10000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    animation: slideInRight 0.3s ease, fadeOut 0.3s ease 2.7s;
+}
+
+.sync-notification {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    z-index: 10000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    animation: slideInRight 0.3s ease, fadeOut 0.3s ease 2.7s;
+}
+
+/* Animations */
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.1); opacity: 0.8; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes modalPop {
+    from {
+        transform: scale(0.9);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+    </style>
+
+    <script>
+    // Check login status
+document.addEventListener('DOMContentLoaded', () => {
+    // Check if user is logged in
+    const savedUser = localStorage.getItem('firebaseUser');
+    const requiresLogin = localStorage.getItem('requiresLogin') === 'true';
+    
+    // If login is required and no user is saved, redirect to login
+    if (requiresLogin && !savedUser) {
+        // Don't redirect immediately, give option
+        setTimeout(() => {
+            const proceed = confirm('Login required for cloud sync. Do you want to login now?');
+            if (proceed) {
+                window.location.href = 'firebase-login.html';
+            } else {
+                localStorage.setItem('requiresLogin', 'false');
+            }
+        }, 2000);
+    }
+    
+    // ... rest of your existing code
+});
+// Complete JavaScript for index.html
+        
+// Complete JavaScript for index.html
+
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('index.html: DOM loaded');
+    
+    const tableBody = document.getElementById('namesTableBody');
+    const form = document.getElementById('namesForm');
+    const maxRows = 40; // Total names for two pages
+    const leftIcon = document.getElementById('leftIcon');
+    const rightIcon = document.getElementById('rightIcon');
+    const toggleLabel = document.getElementById('toggleLabel');
+    const headerFieldsContainer = document.querySelector('.header-fields-container');
+    const hamburgerMenu = document.getElementById('hamburger-menu');
+    const dropdownMenu = document.getElementById('dropdown-menu');
+    
+    let saveTimeout;
+    let currentPage = localStorage.getItem('currentPage') || '1';
+    let isSecondPage = currentPage === '2';
+    let displayMode = localStorage.getItem('displayMode') || 'two-page'; // 'one-page' or 'two-page'
+    let activeInputElement = null; // Track active input element
+
+    // Initialize the view
+    function initializeView() {
+        // Highlight current page in navbar
+        const navLinks = document.querySelectorAll('.navbar a');
+        navLinks.forEach(link => {
+            link.classList.remove('active');
+            if (link.href === window.location.href) {
+                link.classList.add('active');
+            }
+        });
+
+        // Initialize display mode
+        updateDisplayMode();
+        updateView();
+        populateTable();
+    }
+
+    // Update display mode (one-page vs two-page)
+    function updateDisplayMode() {
+        const onePageItem = document.querySelector('[data-value="one-page"]');
+        const twoPageItem = document.querySelector('[data-value="two-page"]');
+        
+        // Update active state in dropdown
+        if (onePageItem && twoPageItem) {
+            onePageItem.classList.toggle('active', displayMode === 'one-page');
+            twoPageItem.classList.toggle('active', displayMode === 'two-page');
+        }
+        
+        // Show/hide page toggle based on mode
+        const positionToggleSection = document.querySelector('.position-toggle-section');
+        if (positionToggleSection) {
+            positionToggleSection.style.display = displayMode === 'two-page' ? 'flex' : 'none';
+        }
+        
+        localStorage.setItem('displayMode', displayMode);
+    }
+
+    // Update the view based on current page
+    function updateView() {
+        const positionToggleSection = document.querySelector('.position-toggle-section');
+        
+        if (displayMode === 'two-page') {
+            if (isSecondPage) {
+                leftIcon.classList.add('active');
+                leftIcon.classList.remove('inactive');
+                
+                rightIcon.classList.add('inactive');
+                rightIcon.classList.remove('active');
+                
+                toggleLabel.textContent = 'Page 2';
+                headerFieldsContainer.classList.add('hidden');
+            } else {
+                leftIcon.classList.add('inactive');
+                leftIcon.classList.remove('active');
+                
+                rightIcon.classList.add('active');
+                rightIcon.classList.remove('inactive');
+                
+                toggleLabel.textContent = 'Page 1';
+                headerFieldsContainer.classList.remove('hidden');
+            }
+            
+            currentPage = isSecondPage ? '2' : '1';
+            localStorage.setItem('currentPage', currentPage);
+            
+            // Show toggle in two-page mode
+            if (positionToggleSection) {
+                positionToggleSection.style.display = 'flex';
+            }
+        } else {
+            // One page mode - always show header fields and only 20 names
+            headerFieldsContainer.classList.remove('hidden');
+            toggleLabel.textContent = 'Names 1-20';
+            leftIcon.classList.remove('active');
+            rightIcon.classList.remove('active');
+            
+            // Hide toggle in one-page mode
+            if (positionToggleSection) {
+                positionToggleSection.style.display = 'none';
+            }
+        }
+    }
+
+    // Function to populate the table with input fields
+    function populateTable() {
+        tableBody.innerHTML = '';
+        let savedNames = JSON.parse(localStorage.getItem('attendanceNames')) || [];
+        
+        // FIX: Always ensure we have exactly maxRows (36) names in the array
+        if (savedNames.length < maxRows) {
+            savedNames = [...savedNames, ...Array(maxRows - savedNames.length).fill('')];
+        } else if (savedNames.length > maxRows) {
+            savedNames = savedNames.slice(0, maxRows);
+        }
+        
+        let startIndex, endIndex, displayOffset;
+        
+        if (displayMode === 'one-page') {
+            // Show only 16 names in one page
+            startIndex = 0;
+            endIndex = 18; // Only 18 names in one-page mode
+            displayOffset = 1;
+        } else {
+            // Two-page mode - original behavior
+            startIndex = isSecondPage ? 20 : 0;
+            endIndex = isSecondPage ? 40 : 20;
+            displayOffset = isSecondPage ? 21 : 1;
+        }
+        
+        for (let i = startIndex; i < endIndex; i++) {
+            const row = document.createElement('tr');
+            const nameValue = savedNames[i] || '';
+            const displayNumber = (i - startIndex) + displayOffset;
+            
+            row.innerHTML = `
+                <td>${displayNumber}.</td>
+                <td>
+                    <input type="text" class="name-input" data-index="${i}" value="${nameValue}" maxlength="50" placeholder="Name">
+                </td>
+            `;
+            tableBody.appendChild(row);
+        }
+        
+        console.log('index.html: Table populated for mode', displayMode, 'showing names', displayOffset, 'to', (endIndex - startIndex) + displayOffset - 1);
+        
+        // Only populate titles and info if we're on first page or one-page mode
+        if (!isSecondPage || displayMode === 'one-page') {
+            const savedTitles = JSON.parse(localStorage.getItem('reportTitles')) || [];
+            document.getElementById('title1').value = savedTitles[0] || "";
+            document.getElementById('title2').value = savedTitles[1] || "";
+            document.getElementById('title3').value = savedTitles[2] || "";
+            
+            const savedDate = localStorage.getItem('tanggalPresensi') || "";
+            document.getElementById('tanggalPresensi').value = savedDate;
+            
+            const savedInfo = JSON.parse(localStorage.getItem('attendanceInfo')) || {};
+            document.getElementById('waktu').value = savedInfo.waktu || "";
+            document.getElementById('tempat').value = savedInfo.tempat || "";
+            document.getElementById('keterangan').value = savedInfo.keterangan || "";
+        }
+        
+        // Add focus event listeners to track active input
+        document.querySelectorAll('.name-input').forEach(input => {
+            input.addEventListener('focus', () => {
+                activeInputElement = input;
+            });
+            
+            input.addEventListener('blur', () => {
+                if (activeInputElement === input) {
+                    activeInputElement = null;
+                }
+            });
+        });
+    }
+
+    // Hamburger menu functionality
+    function setupHamburgerMenu() {
+        // Toggle dropdown menu
+        hamburgerMenu.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isVisible = dropdownMenu.style.display === 'block';
+            dropdownMenu.style.display = isVisible ? 'none' : 'block';
+            
+            // Create overlay if it doesn't exist
+            let overlay = document.querySelector('.dropdown-overlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.className = 'dropdown-overlay';
+                document.body.appendChild(overlay);
+            }
+            overlay.style.display = isVisible ? 'none' : 'block';
+        });
+
+        // Handle dropdown item clicks
+        document.querySelectorAll('.dropdown-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const value = item.getAttribute('data-value');
+                if (value === 'one-page' || value === 'two-page') {
+                    displayMode = value;
+                    updateDisplayMode();
+                    updateView();
+                    populateTable();
+                    
+                    // Close dropdown
+                    dropdownMenu.style.display = 'none';
+                    document.querySelector('.dropdown-overlay').style.display = 'none';
+                    
+                    // Dispatch display mode change event
+                    window.dispatchEvent(new CustomEvent('displayModeChange', { detail: { mode: displayMode } }));
+                }
+            });
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!hamburgerMenu.contains(e.target) && !dropdownMenu.contains(e.target)) {
+                dropdownMenu.style.display = 'none';
+                const overlay = document.querySelector('.dropdown-overlay');
+                if (overlay) overlay.style.display = 'none';
+            }
+        });
+
+        // Close dropdown on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                dropdownMenu.style.display = 'none';
+                const overlay = document.querySelector('.dropdown-overlay');
+                if (overlay) overlay.style.display = 'none';
+            }
+        });
+    }
+
+    // Event listeners for toggle icons (only in two-page mode)
+    leftIcon.addEventListener('click', () => {
+        if (displayMode === 'two-page') {
+            isSecondPage = false;
+            updateView();
+            populateTable();
+            // Sync with report.html if it's open
+            window.dispatchEvent(new CustomEvent('syncPageChange', { detail: { page: 1 } }));
+        }
+    });
+
+    rightIcon.addEventListener('click', () => {
+        if (displayMode === 'two-page') {
+            isSecondPage = true;
+            updateView();
+            populateTable();
+            // Sync with report.html if it's open
+            window.dispatchEvent(new CustomEvent('syncPageChange', { detail: { page: 2 } }));
+        }
+    });
+
+    // Improved auto-save function that doesn't close keyboard
+    function autoSave() {
+        // Save data without re-rendering the entire table
+        saveDataWithoutRerender();
+    }
+    
+    function debouncedAutoSave() {
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(autoSave, 500);
+    }
+    
+    // FIXED: Function to save data without re-rendering (to prevent keyboard close)
+    function saveDataWithoutRerender() {
+        // Get all name inputs and update the saved array
+        const nameInputs = document.querySelectorAll('.name-input');
+        let savedNames = JSON.parse(localStorage.getItem('attendanceNames')) || Array(maxRows).fill('');
+        
+        // Update the saved names array with current input values
+        nameInputs.forEach(input => {
+            const index = parseInt(input.dataset.index);
+            if (!isNaN(index) && index >= 0 && index < maxRows) {
+                savedNames[index] = input.value.trim();
+            }
+        });
+        
+        // Always save titles and info from the DOM (they exist even when hidden)
+        const titles = [
+            document.getElementById('title1').value.trim(),
+            document.getElementById('title2').value.trim(),
+            document.getElementById('title3').value.trim()
+        ];
+        
+        const info = {
+            waktu: document.getElementById('waktu').value.trim(),
+            tempat: document.getElementById('tempat').value.trim(),
+            keterangan: document.getElementById('keterangan').value.trim()
+        };
+        
+        const tanggalPresensi = document.getElementById('tanggalPresensi').value;
+        localStorage.setItem('tanggalPresensi', tanggalPresensi);
+        
+        // Save all data to localStorage
+        localStorage.setItem('attendanceNames', JSON.stringify(savedNames));
+        localStorage.setItem('reportTitles', JSON.stringify(titles));
+        localStorage.setItem('attendanceInfo', JSON.stringify(info));
+        
+        console.log('index.html: Data saved to localStorage,', savedNames.filter(name => name !== '').length, 'names');
+        console.log('index.html: Current display mode:', displayMode);
+        console.log('index.html: Full names array length:', savedNames.length);
+        
+        window.dispatchEvent(new CustomEvent('namesUpdate'));
+    }
+
+    // Event listeners for form and inputs
+    if (form) {
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            saveDataWithoutRerender();
+            alert('Names, titles, and information saved successfully!');
+        });
+    }
+
+    // Auto-save event listener for ALL name inputs
+    document.addEventListener('input', (e) => {
+        if (e.target.classList.contains('name-input') || 
+            e.target.id === 'title1' ||
+            e.target.id === 'title2' ||
+            e.target.id === 'title3' ||
+            e.target.id === 'waktu' ||
+            e.target.id === 'tempat' ||
+            e.target.id === 'keterangan' ||
+            e.target.id === 'tanggalPresensi') {
+            debouncedAutoSave();
+        }
+    });
+
+    // Listen for sync events from report.html
+    window.addEventListener('syncPageChange', (event) => {
+        if (displayMode === 'two-page') {
+            isSecondPage = event.detail.page === 2;
+            updateView();
+            populateTable();
+        }
+    });
+
+    // Listen for display mode changes
+    window.addEventListener('displayModeChange', (event) => {
+        displayMode = event.detail.mode;
+        localStorage.setItem('displayMode', displayMode);
+        updateDisplayMode();
+        updateView();
+        populateTable();
+    });
+
+    // Listen for storage events (when other tabs update data)
+    window.addEventListener('storage', (event) => {
+        if (event.key === 'currentPage' && displayMode === 'two-page') {
+            const newPage = localStorage.getItem('currentPage');
+            isSecondPage = newPage === '2';
+            updateView();
+            populateTable();
+        } else if (event.key === 'attendanceNames' || event.key === 'reportTitles' || event.key === 'attendanceInfo') {
+            // Only update the table if no input is currently focused
+            if (!activeInputElement) {
+                populateTable();
+            }
+        } else if (event.key === 'displayMode') {
+            displayMode = localStorage.getItem('displayMode');
+            updateDisplayMode();
+            updateView();
+            populateTable();
+        }
+    });
+
+    // Listen for names updates from other components
+    window.addEventListener('namesUpdate', () => {
+        // Only update the table if no input is currently focused
+        if (!activeInputElement) {
+            populateTable();
+        }
+    });
+
+    // Function to clear all data
+    function clearAllData() {
+        if (confirm('Are you sure you want to clear all names, titles, and information? This action cannot be undone.')) {
+            localStorage.removeItem('attendanceNames');
+            localStorage.removeItem('reportTitles');
+            localStorage.removeItem('attendanceInfo');
+            populateTable();
+            window.dispatchEvent(new CustomEvent('namesUpdate'));
+            console.log('index.html: All data cleared');
+        }
+    }
+
+    // Add event delegation for dynamically created name inputs
+    document.addEventListener('input', (e) => {
+        if (e.target.matches('.name-input')) {
+            debouncedAutoSave();
+        }
+    });
+
+    // Add keyboard shortcut for clearing all data (Ctrl+Shift+C)
+    document.addEventListener('keydown', (e) => {
+        if (e.ctrlKey && e.shiftKey && e.key === 'C') {
+            e.preventDefault();
+            clearAllData();
+        }
+    });
+
+    // Debug function to check current data
+    function debugData() {
+        const names = JSON.parse(localStorage.getItem('attendanceNames')) || [];
+        console.log('=== DEBUG DATA ===');
+        console.log('Total names:', names.length);
+        console.log('Names 1-20:', names.slice(0, 20));
+        console.log('Names 21-40:', names.slice(21, 40));
+        console.log('Display mode:', displayMode);
+        console.log('Current page:', currentPage);
+        console.log('Active input:', activeInputElement);
+        console.log('==================');
+    }
+
+    // Initialize the application
+    initializeView();
+    setupHamburgerMenu();
+
+    // Make debug function available globally
+    window.debugData = debugData;
+    window.clearAllData = clearAllData;
+
+    // Debug: Log when inputs are detected
+    console.log('index.html: Event listeners attached for auto-save');
+    console.log('index.html: Debug functions available: debugData(), clearAllData()');
+});
+
+// Organization Change Functionality
+document.addEventListener('DOMContentLoaded', () => {
+    const changeOrgItem = document.getElementById('change-org-item');
+    const orgChangeModal = document.getElementById('orgChangeModal');
+    const cancelOrgChangeBtn = document.getElementById('cancelOrgChange');
+    const body = document.body;
+    
+    if (changeOrgItem && orgChangeModal) {
+        let previousActiveItem = null;
+        
+        // When "Change Organization" is clicked
+        changeOrgItem.addEventListener('click', (e) => {
+            e.stopPropagation();
+            
+            // Store the currently active item before opening modal
+            const activeItem = document.querySelector('.dropdown-item.active');
+            if (activeItem) {
+                previousActiveItem = activeItem.getAttribute('data-value');
+            }
+            
+            showOrgChangeModal();
+        });
+        
+        // When organization is selected
+        document.querySelectorAll('.org-change-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const org = btn.getAttribute('data-org');
+                localStorage.setItem('selectedOrganization', org);
+                hideOrgChangeModal();
+                showConfirmationMessage(`Organisasi berhasil diubah ke: ${org}`);
+                
+                // Restore previous active state
+                restorePreviousActiveState();
+            });
+        });
+        
+        // Cancel button
+        if (cancelOrgChangeBtn) {
+            cancelOrgChangeBtn.addEventListener('click', () => {
+                hideOrgChangeModal();
+                // Restore previous active state when cancelled
+                restorePreviousActiveState();
+            });
+        }
+        
+        // Close modal when clicking outside
+        orgChangeModal.addEventListener('click', (e) => {
+            if (e.target === orgChangeModal) {
+                hideOrgChangeModal();
+                // Restore previous active state when clicking outside
+                restorePreviousActiveState();
+            }
+        });
+        
+        // Close modal on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && orgChangeModal.classList.contains('show')) {
+                hideOrgChangeModal();
+                // Restore previous active state on escape
+                restorePreviousActiveState();
+            }
+        });
+        
+        // Function to show organization change modal
+        function showOrgChangeModal() {
+            // Close dropdown menu if open
+            const dropdownMenu = document.getElementById('dropdown-menu');
+            if (dropdownMenu) {
+                dropdownMenu.style.display = 'none';
+            }
+            
+            // Close overlay if exists
+            const overlay = document.querySelector('.dropdown-overlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+            
+            // Show organization change modal
+            orgChangeModal.classList.add('show');
+            body.classList.add('modal-open');
+        }
+        
+        // Function to hide organization change modal
+        function hideOrgChangeModal() {
+            orgChangeModal.classList.remove('show');
+            body.classList.remove('modal-open');
+        }
+        
+        // Function to restore previous active state
+        function restorePreviousActiveState() {
+            if (previousActiveItem) {
+                // Re-open dropdown to show the active state
+                const dropdownMenu = document.getElementById('dropdown-menu');
+                if (dropdownMenu) {
+                    dropdownMenu.style.display = 'block';
+                    
+                    // Restore active class to the correct item
+                    document.querySelectorAll('.dropdown-item').forEach(item => {
+                        item.classList.toggle('active', item.getAttribute('data-value') === previousActiveItem);
+                    });
+                    
+                    // Keep dropdown open for a moment to show the restored state
+                    setTimeout(() => {
+                        dropdownMenu.style.display = 'none';
+                    }, 1000); // Keep visible for 1 second
+                }
+            }
+        }
+        
+        // Function to show confirmation message
+        function showConfirmationMessage(message) {
+            // Create a custom toast notification
+            const toast = document.createElement('div');
+            toast.textContent = message;
+            toast.style.cssText = `
+                position: fixed;
+                top: 55px;
+                left: 20px;
+                background: var(--secondary);
+                color: white;
+                padding: 12px 20px;
+                border-radius: 8px;
+                font-family: 'Poppins', sans-serif;
+                font-size: 14px;
+                z-index: 10000;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                animation: slideIn 0.3s ease;
+            `;
+            
+            document.body.appendChild(toast);
+            
+            // Remove toast after 3 seconds
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => {
+                    document.body.removeChild(toast);
+                }, 300);
+            }, 3000);
+            
+            // Add CSS for animations if not already present
+            if (!document.querySelector('#toast-animations')) {
+                const style = document.createElement('style');
+                style.id = 'toast-animations';
+                style.textContent = `
+                    @keyframes slideIn {
+                        from {
+                            transform: translateX(-100%);
+                            opacity: 0;
+                        }
+                        to {
+                            transform: translateX(0);
+                            opacity: 1;
+                        }
+                    }
+                    @keyframes slideOut {
+                        from {
+                            transform: translateX(0);
+                            opacity: 1;
+                        }
+                        to {
+                            transform: translateX(-100%);
+                            opacity: 0;
+                        }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        }
+        
+        // Debug: Log current organization
+        console.log('Current organization:', localStorage.getItem('selectedOrganization'));
+    }
+});
+// Quick organization color switcher
+const orgColors = {
+    'AMI': {
+        primary: '#736b23',
+        secondary: '#9ade24',
+        accent: '#f5de3e',
+        light: '#ecf0f1',
+        dark: '#0d0a06'
+    },
+    'OSIS': {
+        primary: '#60312f',
+        secondary: '#da3235',
+        accent: '#e1b928',
+        light: '#ecf0f1',
+        dark: '#0d0a06'
+    },
+    'DA': {
+        primary: '#570006',
+        secondary: '#ad0c0e',
+        accent: '#faed1a',
+        light: '#ecf0f1',
+        dark: '#0d0a06'
+    },
+    'MPS': {
+        primary: '#68b9e2',
+        secondary: '#79d0f9',
+        accent: '#e7b71d',
+        light: '#ecf0f1',
+        dark: '#0d0a06'
+    }
+};
+
+function applyOrgColors(org) {
+    const colors = orgColors[org] || orgColors['AMI'];
+    
+    // Update CSS variables
+    document.documentElement.style.setProperty('--primary', colors.primary);
+    document.documentElement.style.setProperty('--secondary', colors.secondary);
+    document.documentElement.style.setProperty('--accent', colors.accent);
+    document.documentElement.style.setProperty('--light', colors.light);
+    document.documentElement.style.setProperty('--dark', colors.dark);
+    
+    localStorage.setItem('selectedOrganization', org);
+}
+
+// Load on startup
+document.addEventListener('DOMContentLoaded', () => {
+    const org = localStorage.getItem('selectedOrganization') || 'AMI';
+    applyOrgColors(org);
+});
+
+// Update when organization changes
+window.addEventListener('organizationChanged', (e) => {
+    if (e.detail && e.detail.org) {
+        applyOrgColors(e.detail.org);
+    }
+});
+// Password protection for each organization
+const orgPasswords = {
+    'AMI': 'ami27',
+    'OSIS': 'osis04',
+    'MPS': 'mps20',
+    'DA': 'da09'
+};
+
+// Add password modal HTML to each page
+const passwordModalHTML = `
+<div id="passwordModal" class="modal password-modal">
+    <div class="modal-content password-modal-content">
+        <h3>Masukkan Password</h3>
+        <p class="password-subtitle">Organisasi: <span id="selectedOrgName"></span></p>
+        <div class="password-input-group">
+            <input type="password" id="passwordInput" class="password-input" 
+                   placeholder="Masukkan password" maxlength="10">
+            <button id="showPasswordToggle" class="btn-show-password">
+                <span class="material-symbols-outlined">visibility</span>
+            </button>
+        </div>
+        <p id="passwordError" class="password-error"></p>
+        <div class="password-buttons">
+            <button id="submitPassword" class="btn-submit-password">Masuk</button>
+            <button id="cancelPassword" class="btn-cancel-password">Batal</button>
+        </div>
+        <div class="password-hint">
+            <small>Password untuk setiap organisasi berbeda-beda.</small>
+        </div>
+    </div>
+</div>
+`;
+
+// Add CSS styles for password modal
+const passwordModalCSS = `
+/* Password Modal Styles */
+.password-modal {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 99999;
+    backdrop-filter: blur(10px);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.4s ease;
+}
+
+.password-modal.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.password-modal-content {
+    background: white;
+    padding: 40px 30px;
+    border-radius: 16px;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.4);
+    text-align: center;
+    max-width: 380px;
+    width: 92%;
+    transform: scale(0.9);
+    animation: modalPop 0.5s ease-out forwards;
+}
+
+.password-modal-content h3 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 8px;
+}
+
+.password-subtitle {
+    color: var(--text-light);
+    margin-bottom: 25px;
+    font-size: 14px;
+}
+
+.password-subtitle span {
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.password-input-group {
+    position: relative;
+    margin-bottom: 15px;
+}
+
+.password-input {
+    width: 100%;
+    padding: 14px 50px 14px 16px;
+    border: 2px solid #ddd;
+    border-radius: 10px;
+    font-size: 16px;
+    font-family: 'Poppins', sans-serif;
+    transition: all 0.3s ease;
+    background: #f8f9fa;
+}
+
+.password-input:focus {
+    outline: none;
+    border-color: var(--secondary);
+    background: white;
+    box-shadow: 0 0 0 3px rgba(154, 222, 36, 0.2);
+}
+
+.btn-show-password {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-light);
+    padding: 5px;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.btn-show-password:hover {
+    background: #f0f0f0;
+    color: var(--text);
+}
+
+.password-error {
+    color: #e74c3c;
+    font-size: 13px;
+    margin: 10px 0;
+    min-height: 18px;
+    text-align: left;
+}
+
+.password-buttons {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.btn-submit-password, .btn-cancel-password {
+    flex: 1;
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: 'Poppins', sans-serif;
+}
+
+.btn-submit-password {
+    background: var(--secondary);
+    color: white;
+}
+
+.btn-submit-password:hover {
+    background: var(--primary);
+    box-shadow: 0 8px 20px rgba(154, 222, 36, 0.3);
+}
+
+.btn-cancel-password {
+    background: #f0f0f0;
+    color: var(--text);
+}
+
+.btn-cancel-password:hover {
+    background: #e0e0e0;
+}
+
+.password-hint {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+    color: var(--text-light);
+    font-size: 12px;
+}
+
+@keyframes modalPop {
+    from { transform: scale(0.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+    20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+.shake {
+    animation: shake 0.5s ease-in-out;
+}
+`;
+
+// Initialize password protection
+function initializePasswordProtection() {
+    // Add CSS to head
+    if (!document.querySelector('#password-modal-styles')) {
+        const style = document.createElement('style');
+        style.id = 'password-modal-styles';
+        style.textContent = passwordModalCSS;
+        document.head.appendChild(style);
+    }
+    
+    // Add password modal to body
+    if (!document.getElementById('passwordModal')) {
+        document.body.insertAdjacentHTML('beforeend', passwordModalHTML);
+    }
+    
+    const passwordModal = document.getElementById('passwordModal');
+    const selectedOrgName = document.getElementById('selectedOrgName');
+    const passwordInput = document.getElementById('passwordInput');
+    const submitPasswordBtn = document.getElementById('submitPassword');
+    const cancelPasswordBtn = document.getElementById('cancelPassword');
+    const showPasswordToggle = document.getElementById('showPasswordToggle');
+    const passwordError = document.getElementById('passwordError');
+    const body = document.body;
+    
+    let selectedOrganization = '';
+    let onSuccessCallback = null;
+    let originalActiveItem = null;
+    
+    // Toggle password visibility
+    showPasswordToggle.addEventListener('click', () => {
+        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordInput.setAttribute('type', type);
+        showPasswordToggle.querySelector('span').textContent = 
+            type === 'password' ? 'visibility' : 'visibility_off';
+    });
+    
+    // Show password modal
+    window.showPasswordModal = (org, successCallback) => {
+        selectedOrganization = org;
+        onSuccessCallback = successCallback;
+        
+        selectedOrgName.textContent = org;
+        passwordInput.value = '';
+        passwordInput.setAttribute('type', 'password');
+        showPasswordToggle.querySelector('span').textContent = 'visibility';
+        passwordError.textContent = '';
+        passwordError.style.display = 'none';
+        
+        passwordModal.classList.add('show');
+        body.classList.add('modal-open');
+        
+        // Focus on password input
+        setTimeout(() => {
+            passwordInput.focus();
+        }, 300);
+    };
+    
+    // Hide password modal
+    function hidePasswordModal() {
+        passwordModal.classList.remove('show');
+        body.classList.remove('modal-open');
+        selectedOrganization = '';
+        onSuccessCallback = null;
+    }
+    
+    // Validate password
+    function validatePassword() {
+        const enteredPassword = passwordInput.value.trim();
+        const correctPassword = orgPasswords[selectedOrganization];
+        
+        if (enteredPassword === correctPassword) {
+            // Password correct
+            if (onSuccessCallback) {
+                onSuccessCallback();
+            }
+            
+            // Save organization to localStorage
+            localStorage.setItem('selectedOrganization', selectedOrganization);
+            
+            // Dispatch organization changed event
+            window.dispatchEvent(new CustomEvent('organizationChanged', {
+                detail: { org: selectedOrganization }
+            }));
+            
+            hidePasswordModal();
+            showSuccessMessage(`Berhasil masuk ke ${selectedOrganization}`);
+            
+            return true;
+        } else {
+            // Password incorrect
+            passwordInput.classList.add('shake');
+            passwordError.textContent = 'Password salah. Coba lagi.';
+            passwordError.style.display = 'block';
+            passwordError.style.color = '#e74c3c';
+            
+            setTimeout(() => {
+                passwordInput.classList.remove('shake');
+            }, 500);
+            
+            // Clear input and focus
+            passwordInput.value = '';
+            passwordInput.focus();
+            
+            return false;
+        }
+    }
+    
+    // Submit password on Enter key
+    passwordInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            validatePassword();
+        }
+    });
+    
+    // Submit password button
+    submitPasswordBtn.addEventListener('click', validatePassword);
+    
+    // Cancel button
+    cancelPasswordBtn.addEventListener('click', () => {
+        hidePasswordModal();
+        
+        // Restore original active state
+        if (originalActiveItem) {
+            const dropdownMenu = document.getElementById('dropdown-menu');
+            if (dropdownMenu) {
+                dropdownMenu.style.display = 'block';
+                document.querySelectorAll('.dropdown-item').forEach(item => {
+                    item.classList.toggle('active', 
+                        item.getAttribute('data-value') === originalActiveItem);
+                });
+                
+                setTimeout(() => {
+                    dropdownMenu.style.display = 'none';
+                }, 1000);
+            }
+            originalActiveItem = null;
+        }
+    });
+    
+    // Close modal when clicking outside
+    passwordModal.addEventListener('click', (e) => {
+        if (e.target === passwordModal) {
+            hidePasswordModal();
+            
+            // Restore original active state
+            if (originalActiveItem) {
+                const dropdownMenu = document.getElementById('dropdown-menu');
+                if (dropdownMenu) {
+                    dropdownMenu.style.display = 'block';
+                    document.querySelectorAll('.dropdown-item').forEach(item => {
+                        item.classList.toggle('active', 
+                            item.getAttribute('data-value') === originalActiveItem);
+                    });
+                    
+                    setTimeout(() => {
+                        dropdownMenu.style.display = 'none';
+                    }, 1000);
+                }
+                originalActiveItem = null;
+            }
+        }
+    });
+    
+    // Close modal on Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && passwordModal.classList.contains('show')) {
+            hidePasswordModal();
+        }
+    });
+    
+    // Show success message
+    function showSuccessMessage(message) {
+        const toast = document.createElement('div');
+        toast.textContent = message;
+        toast.style.cssText = `
+            position: fixed;
+            top: 55px;
+            left: 20px;
+            background: var(--secondary);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 14px;
+            z-index: 10000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            animation: slideIn 0.3s ease;
+        `;
+        
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.animation = 'slideOut 0.3s ease';
+            setTimeout(() => {
+                document.body.removeChild(toast);
+            }, 300);
+        }, 3000);
+    }
+}
+
+// Modify organization change functionality to include password
+function modifyOrgChangeFunctionality() {
+    const changeOrgItem = document.getElementById('change-org-item');
+    const orgModal = document.getElementById('orgModal');
+    const orgChangeModal = document.getElementById('orgChangeModal');
+    const body = document.body;
+    
+    if (changeOrgItem) {
+        // Store original click handler
+        const originalClickHandler = changeOrgItem.onclick;
+        
+        // Override click handler for "Change Organization" in dropdown
+        changeOrgItem.addEventListener('click', (e) => {
+            e.stopPropagation();
+            
+            // Store current active item
+            const activeItem = document.querySelector('.dropdown-item.active');
+            if (activeItem) {
+                window.originalActiveItem = activeItem.getAttribute('data-value');
+            }
+            
+            // Show organization selection modal
+            if (orgChangeModal) {
+                orgChangeModal.classList.add('show');
+                body.classList.add('modal-open');
+                
+                // Close dropdown
+                const dropdownMenu = document.getElementById('dropdown-menu');
+                if (dropdownMenu) {
+                    dropdownMenu.style.display = 'none';
+                }
+                
+                // Close overlay if exists
+                const overlay = document.querySelector('.dropdown-overlay');
+                if (overlay) {
+                    overlay.style.display = 'none';
+                }
+            }
+        });
+    }
+    
+    // Modify organization button click handlers to require password
+    document.querySelectorAll('.org-btn, .org-change-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const org = btn.getAttribute('data-org');
+            
+            // Check if already selected (no password needed)
+            const currentOrg = localStorage.getItem('selectedOrganization');
+            if (currentOrg === org) {
+                // Same organization, just update
+                localStorage.setItem('selectedOrganization', org);
+                window.dispatchEvent(new CustomEvent('organizationChanged', {
+                    detail: { org: org }
+                }));
+                
+                // Close modals
+                if (orgModal) orgModal.classList.remove('show');
+                if (orgChangeModal) orgChangeModal.classList.remove('show');
+                body.classList.remove('modal-open');
+                
+                return;
+            }
+            
+            // Show password modal
+            window.showPasswordModal(org, () => {
+                // Success callback - close modals
+                if (orgModal) orgModal.classList.remove('show');
+                if (orgChangeModal) orgChangeModal.classList.remove('show');
+                body.classList.remove('modal-open');
+                
+                // Apply organization colors
+                applyOrgColors(org);
+            });
+        });
+    });
+    
+    // Also modify the initial organization selection
+    if (orgModal) {
+        document.querySelectorAll('.org-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const org = btn.getAttribute('data-org');
+                
+                // Show password modal
+                window.showPasswordModal(org, () => {
+                    // Success callback - close initial modal
+                    if (orgModal) {
+                        orgModal.style.opacity = '0';
+                        setTimeout(() => {
+                            orgModal.classList.remove('show');
+                            body.classList.remove('modal-open');
+                        }, 400);
+                    }
+                    
+                    // Apply organization colors
+                    applyOrgColors(org);
+                });
+            });
+        });
+    }
+}
+
+// Update the organization selection initialization
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize password protection
+    initializePasswordProtection();
+    
+    // Modify organization change functionality
+    modifyOrgChangeFunctionality();
+    
+    // Check if organization is already selected
+    const selectedOrg = localStorage.getItem('selectedOrganization');
+    const orgModal = document.getElementById('orgModal');
+    const body = document.body;
+    
+    // If no organization selected, show the modal
+    if (!selectedOrg && orgModal) {
+        setTimeout(() => {
+            orgModal.classList.add('show');
+            body.classList.add('modal-open');
+        }, 300);
+    }
+});
+
+// Update applyOrgColors function to check password if changing organization
+const originalApplyOrgColors = window.applyOrgColors;
+window.applyOrgColors = function(org) {
+    // If organization is changing, require password
+    const currentOrg = localStorage.getItem('selectedOrganization');
+    if (currentOrg && currentOrg !== org) {
+        window.showPasswordModal(org, () => {
+            // Password verified, apply colors
+            if (originalApplyOrgColors) {
+                originalApplyOrgColors(org);
+            }
+            
+            // Dispatch event
+            window.dispatchEvent(new CustomEvent('organizationChanged', {
+                detail: { org: org }
+            }));
+        });
+    } else {
+        // Same organization or no current org, apply directly
+        if (originalApplyOrgColors) {
+            originalApplyOrgColors(org);
+        }
+    }
+};
+
+// ===================== FIREBASE INTEGRATION FOR INDEX.HTML =====================
+
+// Firebase auto-save function
+function firebaseAutoSave(dataType, data) {
+    if (window.dbManager) {
+        window.dbManager.saveData(dataType, data, { merge: true })
+            .then(result => {
+                if (result.queued && !result.synced) {
+                    console.log(`📝 ${dataType} queued for sync`);
+                }
+            });
+    }
+}
+
+// Modified auto-save function for index.html
+function saveDataWithoutRerender() {
+    // Get all name inputs and update the saved array
+    const nameInputs = document.querySelectorAll('.name-input');
+    let savedNames = JSON.parse(localStorage.getItem('attendanceNames')) || Array(maxRows).fill('');
+    
+    // Update the saved names array with current input values
+    nameInputs.forEach(input => {
+        const index = parseInt(input.dataset.index);
+        if (!isNaN(index) && index >= 0 && index < maxRows) {
+            savedNames[index] = input.value.trim();
+        }
+    });
+    
+    // Always save titles and info from the DOM
+    const titles = [
+        document.getElementById('title1').value.trim(),
+        document.getElementById('title2').value.trim(),
+        document.getElementById('title3').value.trim()
+    ];
+    
+    const info = {
+        waktu: document.getElementById('waktu').value.trim(),
+        tempat: document.getElementById('tempat').value.trim(),
+        keterangan: document.getElementById('keterangan').value.trim()
+    };
+    
+    const tanggalPresensi = document.getElementById('tanggalPresensi').value;
+    
+    // Save all data to localStorage
+    localStorage.setItem('attendanceNames', JSON.stringify(savedNames));
+    localStorage.setItem('reportTitles', JSON.stringify(titles));
+    localStorage.setItem('attendanceInfo', JSON.stringify(info));
+    localStorage.setItem('tanggalPresensi', tanggalPresensi);
+    
+    // Save to Firebase
+    firebaseAutoSave('attendanceNames', savedNames);
+    firebaseAutoSave('reportTitles', titles);
+    firebaseAutoSave('attendanceInfo', info);
+    if (tanggalPresensi) {
+        firebaseAutoSave('tanggalPresensi', tanggalPresensi);
+    }
+    
+    console.log('✅ Data saved locally and to Firebase');
+    window.dispatchEvent(new CustomEvent('namesUpdate'));
+}
+
+// Listen for Firebase sync updates
+window.addEventListener('syncDataUpdate', (event) => {
+    console.log('🔄 Firebase sync update received:', event.detail.type);
+    
+    switch (event.detail.type) {
+        case 'names':
+            // Update table if not currently editing
+            if (!activeInputElement) {
+                populateTable();
+            }
+            break;
+        case 'titles':
+            document.getElementById('title1').value = event.detail.data[0] || "";
+            document.getElementById('title2').value = event.detail.data[1] || "";
+            document.getElementById('title3').value = event.detail.data[2] || "";
+            break;
+        case 'info':
+            document.getElementById('waktu').value = event.detail.data.waktu || "";
+            document.getElementById('tempat').value = event.detail.data.tempat || "";
+            document.getElementById('keterangan').value = event.detail.data.keterangan || "";
+            break;
+    }
+});
+
+// Load Firebase data on startup
+window.addEventListener('firebaseDataLoaded', () => {
+    console.log('✅ Firebase data loaded, updating UI');
+    populateTable();
+});
+
+// Organization change with Firebase
+function modifyOrgChangeFunctionalityWithFirebase() {
+    const changeOrgItem = document.getElementById('change-org-item');
+    const orgModal = document.getElementById('orgModal');
+    const orgChangeModal = document.getElementById('orgChangeModal');
+    
+    if (changeOrgItem) {
+        changeOrgItem.addEventListener('click', (e) => {
+            e.stopPropagation();
+            
+            // Show organization selection modal
+            if (orgChangeModal) {
+                orgChangeModal.classList.add('show');
+                document.body.classList.add('modal-open');
+                
+                // Close dropdown
+                const dropdownMenu = document.getElementById('dropdown-menu');
+                if (dropdownMenu) {
+                    dropdownMenu.style.display = 'none';
+                }
+            }
+        });
+    }
+    
+    // Modify organization button click handlers
+    document.querySelectorAll('.org-btn, .org-change-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const org = btn.getAttribute('data-org');
+            
+            // Check if already selected
+            const currentOrg = localStorage.getItem('selectedOrganization');
+            if (currentOrg === org) {
+                // Same organization, just close modal
+                if (orgModal) orgModal.classList.remove('show');
+                if (orgChangeModal) orgChangeModal.classList.remove('show');
+                document.body.classList.remove('modal-open');
+                return;
+            }
+            
+            // Change organization in Firebase manager
+            if (window.dbManager) {
+                window.dbManager.setOrganization(org);
+            } else {
+                localStorage.setItem('selectedOrganization', org);
+                applyOrgColors(org);
+                window.dispatchEvent(new CustomEvent('organizationChanged', {
+                    detail: { org: org }
+                }));
+            }
+            
+            // Close modals
+            if (orgModal) orgModal.classList.remove('show');
+            if (orgChangeModal) orgChangeModal.classList.remove('show');
+            document.body.classList.remove('modal-open');
+            
+            // Show confirmation
+            showConfirmationMessage(`Organization changed to: ${org}`);
+        });
+    });
+}
+
+// Initialize Firebase integration
+document.addEventListener('DOMContentLoaded', () => {
+    // Wait for Firebase to initialize
+    setTimeout(() => {
+        // Modify organization change to use Firebase
+        modifyOrgChangeFunctionalityWithFirebase();
+        
+        // Sync button functionality
+        const syncButton = document.createElement('button');
+        syncButton.innerHTML = '<span class="material-symbols-outlined">sync</span>';
+        syncButton.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: var(--secondary);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            z-index: 999;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+        syncButton.title = 'Sync with Firebase';
+        
+        syncButton.addEventListener('click', () => {
+            if (window.dbManager) {
+                window.dbManager.syncAllLocalData();
+            }
+        });
+        
+        document.body.appendChild(syncButton);
+        
+        // Auto-save to Firebase when inputs change
+        const originalDebouncedAutoSave = window.debouncedAutoSave;
+        window.debouncedAutoSave = function() {
+            originalDebouncedAutoSave();
+            
+            // Also trigger Firebase save
+            if (window.dbManager) {
+                setTimeout(() => {
+                    saveDataWithoutRerender();
+                }, 1000);
+            }
+        };
+        
+    }, 1500);
+});
+// Initialize Firebase integration for index.html
+document.addEventListener('DOMContentLoaded', () => {
+    // ... existing code ...
+    
+    // Firebase integration
+    if (window.firebaseIntegration) {
+        // Override auto-save to include Firebase
+        const originalSaveDataWithoutRerender = window.saveDataWithoutRerender;
+        window.saveDataWithoutRerender = function() {
+            originalSaveDataWithoutRerender();
+            
+            // Also save to Firebase
+            if (window.firebaseIntegration && window.firebaseIntegration.canSync()) {
+                const savedNames = JSON.parse(localStorage.getItem('attendanceNames')) || [];
+                const titles = [
+                    document.getElementById('title1').value.trim(),
+                    document.getElementById('title2').value.trim(),
+                    document.getElementById('title3').value.trim()
+                ];
+                const info = {
+                    waktu: document.getElementById('waktu').value.trim(),
+                    tempat: document.getElementById('tempat').value.trim(),
+                    keterangan: document.getElementById('keterangan').value.trim()
+                };
+                
+                window.firebaseIntegration.saveToFirebase('attendanceNames', savedNames);
+                window.firebaseIntegration.saveToFirebase('reportTitles', titles);
+                window.firebaseIntegration.saveToFirebase('attendanceInfo', info);
+            }
+        };
+        
+        // Listen for Firebase data updates
+        window.addEventListener('firebaseNamesUpdate', (event) => {
+            if (!activeInputElement) {
+                rowHeaderNames = event.detail.names;
+                populateTable();
+            }
+        });
+    }
+});
+// Di bagian JavaScript index.html, tambahkan:
+
+// Real-time sync handlers
+window.addEventListener('firebaseNamesUpdate', (event) => {
+    console.log('index.html: Firebase names update received');
+    
+    // Check if user is currently typing
+    const activeInput = document.querySelector('.name-input:focus');
+    if (activeInput) {
+        console.log('index.html: User is typing, delaying update');
+        
+        // Show notification
+        if (window.firebaseIntegration) {
+            window.firebaseIntegration.showNotification(
+                'New names available. Will update when you finish typing.',
+                'info',
+                2000
+            );
+        }
+        
+        return;
+    }
+    
+    // Update the names array
+    rowHeaderNames = event.detail.names || [];
+    
+    // Update the table
+    populateTable();
+    
+    // Show notification
+    if (event.detail.source === 'realtime') {
+        const nameCount = rowHeaderNames.filter(name => name && name.trim()).length;
+        if (window.firebaseIntegration) {
+            window.firebaseIntegration.showNotification(
+                `${nameCount} names updated from another device`,
+                'info',
+                2000
+            );
+        }
+    }
+});
+
+// Listen for all sync updates
+window.addEventListener('syncDataUpdate', (event) => {
+    console.log('index.html: Sync data update:', event.detail.type);
+    
+    // Handle different data types
+    switch (event.detail.type) {
+        case 'reportTitles':
+            // Update title inputs
+            const titles = event.detail.data || [];
+            document.getElementById('title1').value = titles[0] || '';
+            document.getElementById('title2').value = titles[1] || '';
+            document.getElementById('title3').value = titles[2] || '';
+            break;
+            
+        case 'attendanceInfo':
+            // Update info inputs
+            const info = event.detail.data || {};
+            document.getElementById('waktu').value = info.waktu || '';
+            document.getElementById('tempat').value = info.tempat || '';
+            document.getElementById('keterangan').value = info.keterangan || '';
+            break;
+            
+        case 'tanggalPresensi':
+            // Update date input
+            document.getElementById('tanggalPresensi').value = event.detail.data || '';
+            break;
+    }
+});
+
+// Override auto-save untuk trigger real-time updates
+const originalSaveDataWithoutRerender = window.saveDataWithoutRerender;
+window.saveDataWithoutRerender = function() {
+    // Call original function
+    originalSaveDataWithoutRerender();
+    
+    // Get current data
+    const nameInputs = document.querySelectorAll('.name-input');
+    let savedNames = JSON.parse(localStorage.getItem('attendanceNames')) || Array(maxRows).fill('');
+    
+    nameInputs.forEach(input => {
+        const index = parseInt(input.dataset.index);
+        if (!isNaN(index) && index >= 0 && index < maxRows) {
+            savedNames[index] = input.value.trim();
+        }
+    });
+    
+    const titles = [
+        document.getElementById('title1').value.trim(),
+        document.getElementById('title2').value.trim(),
+        document.getElementById('title3').value.trim()
+    ];
+    
+    const info = {
+        waktu: document.getElementById('waktu').value.trim(),
+        tempat: document.getElementById('tempat').value.trim(),
+        keterangan: document.getElementById('keterangan').value.trim()
+    };
+    
+    const tanggalPresensi = document.getElementById('tanggalPresensi').value;
+    
+    // Save to Firebase if enabled
+    if (window.firebaseIntegration && window.firebaseIntegration.canSync()) {
+        // Save names
+        window.firebaseIntegration.saveToFirebase('attendanceNames', savedNames)
+            .then(result => {
+                if (result.synced) {
+                    console.log('✅ Names synced to cloud');
+                }
+            });
+        
+        // Save titles
+        window.firebaseIntegration.saveToFirebase('reportTitles', titles);
+        
+        // Save info
+        window.firebaseIntegration.saveToFirebase('attendanceInfo', info);
+        
+        // Save date
+        if (tanggalPresensi) {
+            window.firebaseIntegration.saveToFirebase('tanggalPresensi', tanggalPresensi);
+        }
+    }
+};
+
+// Add real-time connection status monitor
+function setupRealtimeMonitor() {
+    const statusDiv = document.createElement('div');
+    statusDiv.id = 'realtime-status';
+    statusDiv.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 50px;
+        padding: 5px 10px;
+        background: rgba(0,0,0,0.7);
+        color: white;
+        border-radius: 4px;
+        font-size: 11px;
+        z-index: 9998;
+        font-family: 'Poppins', sans-serif;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    `;
+    
+    document.body.appendChild(statusDiv);
+    
+    // Update status periodically
+    setInterval(() => {
+        if (window.dbManager) {
+            const status = window.dbManager.isOnline ? '🟢 Online' : '🔴 Offline';
+            const listeners = Object.keys(window.dbManager.syncListeners || {}).length;
+            const queue = window.dbManager.getQueueSize() || 0;
+            
+            statusDiv.innerHTML = `
+                <span>${status}</span>
+                <span style="margin-left: 10px;">👂${listeners}</span>
+                <span style="margin-left: 5px;">📝${queue}</span>
+            `;
+            
+            // Color based on status
+            statusDiv.style.background = window.dbManager.isOnline ?
+                'rgba(76, 175, 80, 0.8)' : 'rgba(244, 67, 54, 0.8)';
+        }
+    }, 2000);
+}
+
+// Initialize real-time monitor
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        setupRealtimeMonitor();
+    }, 3000);
+});
+// Di bagian JavaScript index.html, tambahkan:
+
+// Firebase real-time handlers
+window.addEventListener('namesUpdated', (event) => {
+    console.log('index.html: Names updated from Firebase');
+    
+    // Don't update if user is typing
+    const activeInput = document.querySelector('.name-input:focus');
+    if (activeInput) {
+        console.log('User is typing, will update later');
+        return;
+    }
+    
+    // Update the table
+    const newNames = event.detail.data || [];
+    rowHeaderNames = newNames;
+    populateTable();
+    
+    // Show notification
+    showFirebaseNotification(`${newNames.filter(n => n).length} names updated from cloud`);
+});
+
+window.addEventListener('titlesUpdated', (event) => {
+    const titles = event.detail.data || [];
+    document.getElementById('title1').value = titles[0] || '';
+    document.getElementById('title2').value = titles[1] || '';
+    document.getElementById('title3').value = titles[2] || '';
+});
+
+window.addEventListener('infoUpdated', (event) => {
+    const info = event.detail.data || {};
+    document.getElementById('waktu').value = info.waktu || '';
+    document.getElementById('tempat').value = info.tempat || '';
+    document.getElementById('keterangan').value = info.keterangan || '';
+});
+
+// Helper function for notifications
+function showFirebaseNotification(message) {
+    const notification = document.createElement('div');
+    notification.textContent = `🔄 ${message}`;
+    notification.style.cssText = `
+        position: fixed;
+        top: 70px;
+        right: 20px;
+        padding: 10px 15px;
+        background: var(--secondary);
+        color: white;
+        border-radius: 5px;
+        z-index: 10000;
+        font-family: 'Poppins', sans-serif;
+        font-size: 12px;
+        animation: slideInRight 0.3s ease;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
+// Override save function
+const originalSave = window.saveDataWithoutRerender;
+window.saveDataWithoutRerender = function() {
+    originalSave();
+    
+    // Save to Firebase
+    if (window.firebaseIntegration && window.firebaseIntegration.ready) {
+        const names = JSON.parse(localStorage.getItem('attendanceNames') || '[]');
+        const titles = [
+            document.getElementById('title1').value.trim(),
+            document.getElementById('title2').value.trim(),
+            document.getElementById('title3').value.trim()
+        ];
+        const info = {
+            waktu: document.getElementById('waktu').value.trim(),
+            tempat: document.getElementById('tempat').value.trim(),
+            keterangan: document.getElementById('keterangan').value.trim()
+        };
+        
+        // Save each to Firebase
+        window.firebaseIntegration.saveData('attendanceNames', names);
+        window.firebaseIntegration.saveData('reportTitles', titles);
+        window.firebaseIntegration.saveData('attendanceInfo', info);
+    }
+};
+    </script>
+    <!-- ORGANIZATION CHANGE MODAL -->
+<div id="orgChangeModal" class="modal org-change-modal">
+    <div class="modal-content org-change-modal-content">
+        <h3>Pilih Organisasi</h3>
+        <p class="org-change-subtitle">Pilih organisasi yang ingin Anda gunakan</p>
+        
+        <div class="org-change-options">
+            <button class="org-change-btn" data-org="MPS">
+                MPS
+            </button>
+            <button class="org-change-btn" data-org="OSIS">
+                OSIS
+            </button>
+            <button class="org-change-btn" data-org="AMI">
+                AMI
+            </button>
+            <button class="org-change-btn" data-org="DA">
+                DA
+            </button>
+        </div>
+        
+            <div style="margin-top: 20px;">
+                <button id="cancelOrgChange" class="btn-cancel" style="padding: 10px 20px;">
+                    Batal
+                </button>
+            </div>
+    </div>
+</div>
+<!-- ORGANIZATION SELECTION MODAL -->
+<div id="orgModal" class="modal org-modal">
+    <div class="modal-content org-modal-content">
+        <h3>Pilih Organisasi</h3>
+        <p class="org-subtitle">Pilih salah satu organisasi untuk melanjutkan</p>
+        
+        <div class="org-options">
+            <button class="org-btn" data-org="MPS">MPS</button>
+            <button class="org-btn" data-org="OSIS">OSIS</button>
+            <button class="org-btn" data-org="AMI">AMI</button>
+            <button class="org-btn" data-org="DA">DA</button>
+        </div>
+        
+        <p style="margin-top: 20px; font-size: 12px; color: #666;">
+            Anda harus memilih organisasi sebelum menggunakan aplikasi
+        </p>
+    </div>
+</div>
+<script src="firebase-config.js"></script>
+<script src="firebase-auth.js"></script>
+<script src="firebase-db.js"></script>
+</body>
+</html>
