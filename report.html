@@ -1,0 +1,3310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Attendance Report</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@24..48,100..700,0..1">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Add this after html2canvas script -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+    <link rel="stylesheet" href="navbar.css">
+    <style>
+        :root {
+            --primary: #736b23;
+            --secondary: #9ade24;
+            --accent: #f5de3e;
+            --light: #ecf0f1;
+            --dark: #0d0a06;
+            --text: #333;
+            --text-light: #777;
+            --gold: #FFD700;
+            --silver: #C0C0C0;
+            --bronze: #CD7F32;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        /* Sync Notification Styles */
+.sync-notification {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    background: var(--secondary);
+    color: white;
+    z-index: 10000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    animation: slideInRight 0.3s ease, fadeOut 0.3s ease 2.7s;
+}
+
+.sync-notification.error {
+    background: #ff6b6b;
+}
+
+.sync-notification.success {
+    background: #6bcf7f;
+}
+
+.sync-notification.warning {
+    background: #ffd93d;
+    color: #333;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+/* Sync Status Indicator */
+#sync-status-indicator {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    z-index: 9999;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+}
+
+#sync-status-indicator:hover {
+    transform: scale(1.2);
+}
+
+/* Manual Sync Button */
+.btn-sync {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    background: var(--secondary);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    cursor: pointer;
+    z-index: 999;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.btn-sync:hover {
+    background: var(--primary);
+    transform: scale(1.1);
+}
+
+.btn-sync.syncing {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            color: var(--text);
+            background-color: #f0f0f0;
+            margin: 0;
+            padding-top: 60px;
+            overflow-x: hidden;
+            font-weight: 400;
+        }
+
+/* Prevent background scroll when modal is open */
+body.modal-open {
+    overflow: hidden;
+}
+
+/* Organization Change Modal */
+.org-change-modal {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    backdrop-filter: blur(5px);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.4s ease;
+}
+
+.org-change-modal.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.org-change-modal-content {
+    background: white;
+    padding: 40px 30px;
+    border-radius: 16px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+    text-align: center;
+    max-width: 420px;
+    width: 92%;
+    transform: scale(0.8);
+    animation: modalPop 0.5s ease-out forwards;
+}
+
+.org-change-modal-content h3 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 8px;
+}
+
+.org-change-subtitle {
+    color: var(--text-light);
+    margin-bottom: 30px;
+    font-size: 14px;
+}
+
+.org-change-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.org-change-btn {
+    padding: 20px 12px;
+    background: white;
+    border: none;
+    border-radius: 14px;
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--text);
+    cursor: none;
+}
+
+.org-change-btn:hover {
+    background: var(--secondary);
+    color: white;
+    border-color: var(--secondary);
+    box-shadow: 0 12px 25px rgba(154,222,36,0.35);
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+    .org-change-options { grid-template-columns: 1fr; }
+    .org-change-modal-content { padding: 35px 25px; }
+}
+
+.org-modal {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    backdrop-filter: blur(5px);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.4s ease;
+}
+
+.org-modal.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.org-modal-content {
+    background: white;
+    padding: 40px 30px;
+    border-radius: 16px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+    text-align: center;
+    max-width: 420px;
+    width: 92%;
+}
+
+.org-modal-content h3 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 8px;
+}
+
+.org-subtitle {
+    color: var(--text-light);
+    margin-bottom: 30px;
+    font-size: 14px;
+}
+
+.org-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.org-btn {
+    padding: 20px 12px;
+    background: white;
+    border: none;
+    border-radius: 14px;
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--text);
+    cursor: none;
+}
+
+.org-btn:hover {
+    background: var(--secondary);
+    color: white;
+    border-color: var(--secondary);
+    box-shadow: 0 12px 25px rgba(154,222,36,0.35);
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+    .org-options { grid-template-columns: 1fr; }
+    .org-modal-content { padding: 35px 25px; }
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .org-options {
+        grid-template-columns: 1fr;
+    }
+    .org-modal-content {
+        padding: 30px 20px;
+    }
+}
+
+        /* Button Styles */
+        .btn-hamburger-menu {
+            position: fixed;
+            top: 15px;
+            right: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: none;
+            background: transparent;
+            border: none;
+            z-index: 1001;
+            color: var(--text);
+            transition: all 0.3s ease;
+        }
+
+        .btn-hamburger-menu:hover {
+            color: var(--secondary);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-download-paper {
+            position: fixed;
+            padding: 6px 18px 7px 7px;
+            border-radius: 5px;
+            cursor: none;
+            background: transparent;
+            border: none;
+            z-index: 1001;
+            color: var(--text);
+            transition: all 0.3s ease;
+        }
+
+        .btn-download-paper:hover {
+            color: var(--secondary);
+        }
+
+        /* Hamburger Menu Styles */
+        .btn-hamburger-menu {
+            position: fixed;
+            right: 20px;
+            padding: 7px;
+            border-radius: 5px;
+            cursor: none;
+            background: transparent;
+            border: none;
+            z-index: 1001;
+            color: var(--text);
+            transition: all 0.3s ease;
+        }
+
+        .btn-hamburger-menu:hover {
+            color: var(--secondary);
+        }
+
+        .dropdown-menu {
+            position: fixed;
+            right: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            z-index: 1002;
+            display: none;
+            min-width: 150px;
+            overflow: hidden;
+            animation: dropdownFadeIn 0.2s ease-out;
+        }
+
+        @keyframes dropdownFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .dropdown-item {
+            padding: 12px 16px;
+            cursor: none;
+            color: var(--text);
+            font-family: 'Poppins', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .dropdown-item:hover {
+            background: var(--secondary);
+            color: var(--light);
+        }
+
+        .dropdown-item.active {
+            background: var(--secondary);
+            color: var(--light);
+        }
+
+        /* Overlay to close dropdown when clicking outside */
+        .dropdown-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            z-index: 1000;
+            display: none;
+        }
+
+        /* Update existing styles for better spacing */
+        .names-form-section {
+            padding: 80px 20px;
+        }
+
+        /* Page Toggle - Fixed Position on Left Side */
+        .page-toggle-section {
+            position: fixed;
+            top: 0;
+            left: 20px;
+            right: auto;
+            transform: none;
+            z-index: 1001;
+            background: transparent;
+            padding: 0;
+            box-shadow: none;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            margin: 0;
+        }
+
+        .page-toggle-section .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: transparent;
+        }
+
+        .page-toggle-section .toggle-icon {
+            font-size: 24px;
+            margin-top: -10px;
+            cursor: none;
+            padding: 8px;
+            border-radius: 50%;
+            color: var(--text);
+            background: transparent;
+            display: inline-block;
+        }
+
+        .page-toggle-section .toggle-icon.active {
+            color: var(--text);
+        }
+
+            .page-toggle-section .toggle-icon.inactive {
+                visibility: hidden;
+                opacity: 0;
+                pointer-events: none;
+            }
+
+        .page-toggle-section .toggle-label {
+            font-weight: 600;
+            color: var(--text);
+            font-size: 14px;
+            margin: 0;
+            margin-top: -10px;
+        }
+
+/* KERTAS A4 BENAR-BENAR SEPERTI KERTAS CETAK */
+/* Margin dalam (kiri-kanan-atas-bawah) SELALU 20mm di semua orientasi & ukuran layar */
+#print-paper {
+    width: 210mm;           /* lebar A4 */
+    height: 297mm;          /* tinggi A4 */
+    padding: 20mm;          /* INI YANG KAMU MAU: 20mm dari 4 sisi */
+    box-sizing: border-box;
+    background: white;
+    margin: 20px auto;      /* jarak luar dari layar ke kertas */
+    box-shadow: 0 4px 25px rgba(0,0,0,0.2);
+    position: relative;
+    overflow: hidden;
+    
+    /* Tetap pakai ukuran mm supaya 100% akurat saat print & di semua device */
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+/* Hapus semua padding/margin lain yang mengganggu */
+#print-paper > * {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box;
+}
+
+        .header {
+            text-align: center;
+            padding: 10px;
+            border-bottom: 1px solid #fff;
+            position: relative;
+            z-index: 0;
+        }
+
+/* LOGO: jarak kiri-kanan-atas-bawah SAMA PERSIS dengan isi lain */
+.logo-wrapper {
+    width: 100%;
+    text-align: center;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.logo-img {
+    max-width: 100%;                   /* biar tidak nyentuh tepi */
+    height: auto;
+    display: block;
+    margin: 0 auto;
+    margin-top: -100px;
+}
+
+        h4 {
+            font-size: 14px;
+            margin: 5px 0px;
+            font-family: 'Times New Roman', Times, serif;
+        }
+
+        p {
+            font-size: 14px;
+            margin: 5px 0;
+        }
+
+        table {
+            width: 97%;
+            border-collapse: collapse;
+            margin: 0 auto;
+        }
+
+        th, td {
+            border: 1px solid #000;
+            font-family: 'Times New Roman', Times, serif;
+        }
+
+        th {
+            background-color: #fff;
+            text-align: center;
+            padding: 5px 3px 6px;
+            font-size: 14px;
+        }
+
+        td {
+            text-align: left;
+            padding: 2px 5px 5px;
+            vertical-align: center;
+            font-size: 14px;
+        }
+
+        .date {
+            font-size: 12px;
+        }
+
+        .signature-wrapper {
+            width: 100%;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: none;
+            background-color: #fff;
+            border: none;
+            padding: 5px;
+            box-sizing: border-box;
+            margin-bottom: -5px;
+        }
+
+        .signature img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            object-position: center;
+        }
+
+        td:nth-child(1) { background-color: #fff; text-align: center; width: 7%; font-size: 14px; }
+        td:nth-child(2) { background-color: #fff; width: 32%; font-size: 14px; }
+        td:nth-child(3) { background-color: #fff; width: 15%; font-size: 14px; }
+        td:nth-child(4) { background-color: #fff; width: 15%; font-size: 14px; }
+        td:nth-child(5) { background-color: #fff; width: 17%; font-size: 14px; }
+
+        .information p {
+            text-align: left;
+            margin-left: 1.5%;
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 14px;
+        }
+
+        .informations p {
+            text-align: left;
+            margin-left: 1.5%;
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 14px;
+        }
+
+        .informations {
+            margin-top: -55px;
+        }
+
+        .keterangan {
+            width: 60px;
+            height: 25px;
+            margin-top: -1.5px;
+            font-size: 14px;
+            border: none;
+            background-color: transparent;
+            cursor: none;
+            appearance: none;
+        }
+
+        .keterangan:focus { outline: none; }
+
+        .signature-section {
+            position: relative;
+            width: 97%;
+            max-width: 97%;
+            margin: 30px auto 10px auto;
+            height: 20px;
+        }
+
+        .signature-section::before {
+            content: '';
+            position: absolute;
+            top: -30.5px;
+            left: 1px;
+            right: 1px;
+            height: 1px;
+            background: black;
+            transform: translateY(-50%);
+        }
+
+        /* Modal Styles */
+        .modal {
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            position: relative;
+        }
+
+        .modal-content h3 {
+            margin: 0 0 15px 0;
+            color: #333;
+            font-size: 20px;
+            font-weight: bold;
+            font-family: 'Times New Roman', Times, serif;
+        }
+
+        .modal-content p {
+            margin: 0 0 25px 0;
+            color: #0d0a06;
+            font-size: 14px;
+            line-height: 1.4;
+            font-family: 'Times New Roman', Times, serif;
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+                .btn-delete,
+                .btn-cancel {
+                    padding: 12px 24px;
+                    border: none;
+                    border-radius: 6px;
+                    font-size: 14px;
+                    font-weight: bold;
+                    cursor: none;
+                    transition: all 0.2s ease;
+                    font-family: 'Times New Roman', Times, serif;
+                }
+                
+                .btn-delete {
+                    background-color: white;
+                    color: red;
+                }
+                
+                .btn-delete:hover {
+                    background-color: red;
+                    color: white;
+                }
+                
+                .btn-cancel {
+                    background-color: white;
+                    color: black;
+                }
+                
+                .btn-cancel:hover {
+                    background-color: black;
+                    color: white;
+                }
+
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            .btn-hamburger-menu {
+                top: 15px;
+                right: 15px;
+                padding: 8px;
+            }
+
+            .btn-download-paper {
+                top: 15px;
+                right: 55px;
+                padding: 8px;
+            }
+
+            .dropdown-menu {
+                top: 55px;
+                right: 15px;
+            }
+
+            .page-toggle-section {
+                top: 0;
+                left: 15px;
+            }
+            
+            .page-toggle-section .toggle-container {
+                padding: 8px;
+                gap: 8px;
+            }
+            
+            .page-toggle-section .toggle-icon {
+                font-size: 20px;
+                padding: 6px;
+            }
+            
+            .page-toggle-section .toggle-label {
+                font-size: 12px;
+            }
+            
+            .container {
+                margin-top: 15px;
+                width: 100%;
+                height: auto;
+                padding: 10mm;
+            }
+
+            .modal-content {
+                padding: 20px;
+                margin: 20px;
+            }
+            
+            .modal-buttons {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .btn-delete,
+            .btn-cancel {
+                width: 100%;
+            }
+        }
+
+        @media print {
+            body, .container {
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            .container {
+                width: 210mm !important;
+                height: 297mm !important;
+                padding: 20mm;
+            }
+            .btn-clear-signatures, .btn-download-paper, nav, .page-toggle-section, .btn-hamburger-menu {
+                display: none !important;
+            }
+        }
+
+        /* Signature number and keterangan container */
+        .signature-number {
+            font-size: 14px;
+            text-align: left;
+            margin-bottom: 5px;
+        }
+
+        .keterangan-container {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .keterangan-number {
+            font-size: 14px;
+        }
+        /* firebase-ui.css - CSS untuk Firebase UI elements */
+/* Sync Status Indicator */
+#sync-status-indicator {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    z-index: 9999;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+}
+
+#sync-status-indicator:hover {
+    transform: scale(1.2);
+}
+
+#sync-status-indicator.online {
+    background: #6bcf7f;
+}
+
+#sync-status-indicator.offline {
+    background: #ff6b6b;
+}
+
+#sync-status-indicator.pending {
+    background: #ffd93d;
+    animation: pulse 1s infinite;
+}
+
+/* Sync Button */
+#firebase-sync-button {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    background: var(--secondary);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    cursor: pointer;
+    z-index: 999;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+#firebase-sync-button:hover {
+    background: var(--primary);
+    transform: scale(1.1);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+}
+
+#firebase-sync-button.syncing {
+    animation: spin 1s linear infinite;
+}
+
+/* Auth Status Indicator */
+#auth-status-indicator {
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    padding: 5px 10px;
+    background: var(--secondary);
+    color: white;
+    border-radius: 4px;
+    font-size: 11px;
+    z-index: 999;
+    font-family: 'Poppins', sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Organization Indicator */
+#firebase-org-indicator {
+    position: fixed;
+    top: 15px;
+    left: 120px;
+    padding: 5px 10px;
+    background: rgba(255,255,255,0.9);
+    color: var(--text);
+    border-radius: 4px;
+    font-size: 12px;
+    z-index: 999;
+    font-family: 'Poppins', sans-serif;
+    display: flex;
+    align-items: center;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+/* Notifications */
+.firebase-notification {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    background: white;
+    color: #333;
+    z-index: 10000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    animation: slideInRight 0.3s ease, fadeOut 0.3s ease 2.7s;
+}
+
+.sync-notification {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    z-index: 10000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    animation: slideInRight 0.3s ease, fadeOut 0.3s ease 2.7s;
+}
+
+/* Animations */
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.1); opacity: 0.8; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes modalPop {
+    from {
+        transform: scale(0.9);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+/* firebase-ui.css - CSS untuk Firebase UI elements */
+/* Sync Status Indicator */
+#sync-status-indicator {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    z-index: 9999;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+}
+
+#sync-status-indicator:hover {
+    transform: scale(1.2);
+}
+
+#sync-status-indicator.online {
+    background: #6bcf7f;
+}
+
+#sync-status-indicator.offline {
+    background: #ff6b6b;
+}
+
+#sync-status-indicator.pending {
+    background: #ffd93d;
+    animation: pulse 1s infinite;
+}
+
+/* Sync Button */
+#firebase-sync-button {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    background: var(--secondary);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    cursor: pointer;
+    z-index: 999;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+#firebase-sync-button:hover {
+    background: var(--primary);
+    transform: scale(1.1);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+}
+
+#firebase-sync-button.syncing {
+    animation: spin 1s linear infinite;
+}
+
+/* Auth Status Indicator */
+#auth-status-indicator {
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    padding: 5px 10px;
+    background: var(--secondary);
+    color: white;
+    border-radius: 4px;
+    font-size: 11px;
+    z-index: 999;
+    font-family: 'Poppins', sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Organization Indicator */
+#firebase-org-indicator {
+    position: fixed;
+    top: 15px;
+    left: 120px;
+    padding: 5px 10px;
+    background: rgba(255,255,255,0.9);
+    color: var(--text);
+    border-radius: 4px;
+    font-size: 12px;
+    z-index: 999;
+    font-family: 'Poppins', sans-serif;
+    display: flex;
+    align-items: center;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+/* Notifications */
+.firebase-notification {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    background: white;
+    color: #333;
+    z-index: 10000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    animation: slideInRight 0.3s ease, fadeOut 0.3s ease 2.7s;
+}
+
+.sync-notification {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    z-index: 10000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    animation: slideInRight 0.3s ease, fadeOut 0.3s ease 2.7s;
+}
+
+/* Animations */
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.1); opacity: 0.8; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes modalPop {
+    from {
+        transform: scale(0.9);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <a href="index.html"><span class="material-symbols-outlined">group</span></a>
+                <a href="report.html" class="active"><span class="material-symbols-outlined">
+                article
+            </span></a>
+    </nav>
+    
+    <!-- ORGANIZATION SELECTION MODAL -->
+<div id="orgModal" class="modal org-modal">
+    <div class="modal-content org-modal-content">
+        <h3>Pilih Organisasi</h3>
+        <p class="org-subtitle">Pilih salah satu organisasi untuk melanjutkan</p>
+        
+        <div class="org-options">
+            <button class="org-btn" data-org="MPS">
+                MPS
+            </button>
+            <button class="org-btn" data-org="OSIS">
+                OSIS
+            </button>
+            <button class="org-btn" data-org="AMI">
+                AMI
+            </button>
+            <button class="org-btn" data-org="DA">
+                DA
+            </button>
+        </div>
+    </div>
+</div>
+
+    <!-- Hamburger Menu Button -->
+    <button id="hamburger-menu" class="btn-hamburger-menu">
+        <span class="material-symbols-outlined">menu</span>
+    </button>
+
+    <!-- Download Button -->
+    <button id="download-paper" class="btn-download-paper">
+        <span class="material-symbols-outlined">download</span>
+    </button>
+    
+    <!-- Dropdown Menu -->
+    <div id="dropdown-menu" class="dropdown-menu">
+        <div class="dropdown-item" data-value="one-page">One Page</div>
+        <div class="dropdown-item" data-value="two-page">Two Pages</div>
+        <!-- Add this line inside #dropdown-menu in ALL 3 pages -->
+<div class="dropdown-item" id="change-org-item">
+    Change Organization >
+</div>
+    </div>
+
+    <!-- Page Toggle Section -->
+    <div class="page-toggle-section">
+        <div class="toggle-container">
+            <span class="toggle-icon material-symbols-outlined active" id="reportLeftIcon">chevron_left</span>
+            <span class="toggle-label" id="reportToggleLabel"></span>
+            <span class="toggle-icon material-symbols-outlined" id="reportRightIcon">chevron_right</span>
+        </div>
+    </div>
+    
+<div id="print-paper">
+    <div id="report-container">
+        <div class="header">
+            <div class="logo-wrapper">
+                <img src="logo.png" class="logo-img" alt="Organization Logo">
+            </div>
+            <h4 id="report-title1">PRESENSI KEHADIRAN PESERTA</h4>
+            <h4 id="report-title2">NAMA PROGRAM KERJA</h4>
+            <h4 id="report-title3">MASA BAKTI TAHUN/TAHUN</h4>
+        </div>
+        <div class="information">
+            <p>Waktu&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: </p> 
+            <p>Tempat&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: </p>
+            <p>Keterangan&nbsp;&nbsp;&nbsp;: </p>
+        </div>
+        <table border="1">
+            <thead>
+                <tr>
+                    <th rowspan="2">NO.</th>
+                    <th rowspan="2">NAMA</th>
+                    <th colspan="3"><div class="date" id="report-date">Loading date...</div></th>
+                </tr>
+                <tr>
+                    <th colspan="2">TANDA TANGAN</th>
+                    <th>KETERANGAN</th>
+                </tr>
+            </thead>
+            <tbody id="report-table-body">
+                <!-- Dynamically populated by JavaScript -->
+            </tbody>
+        </table>
+        <div class="signature-section">
+            <div class="end-line left"></div>
+            <div class="end-line right"></div>
+        </div>
+        <div class="informations">
+            <p>Keterangan :</p>
+            <p>1. Izin: <b>I</b></p>
+            <p>2. Sakit: <b>S</b></p>
+            <p>3. Tanpa keterangan: <b>TK</b></p>
+        </div>
+    </div>
+</div>
+
+    
+    <!-- DELETE MODAL -->
+    <div id="deleteModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3>Hapus Tanda Tangan?</h3>
+            <p>Apakah Anda yakin ingin menghapus tanda tangan <span id="deleteName"></span>?</p>
+            <div class="modal-buttons">
+                <button id="confirmDelete" class="btn-delete">Hapus</button>
+                <button id="cancelDelete" class="btn-cancel">Batal</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Complete JavaScript for report.html
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('report.js: DOM loaded');
+            
+            const defaultTitles = [
+                "PRESENSI KEHADIRAN PESERTA",
+                "NAMA PROGRAM KERJA",
+                "MASA BAKTI TAHUN/TAHUN"
+            ];
+            
+            let currentPage = localStorage.getItem('currentPage') || '1';
+            let displayMode = localStorage.getItem('displayMode') || 'two-page';
+            let rowHeaderNames = JSON.parse(localStorage.getItem('attendanceNames')) || [];
+
+            // Page toggle functionality
+            const leftIcon = document.getElementById('reportLeftIcon');
+            const rightIcon = document.getElementById('reportRightIcon');
+            const toggleLabel = document.getElementById('reportToggleLabel');
+            const toggleSection = document.querySelector('.page-toggle-section');
+            const hamburgerMenu = document.getElementById('hamburger-menu');
+            const dropdownMenu = document.getElementById('dropdown-menu');
+            let isSecondPage = currentPage === '2';
+            
+            function updateActiveDropdownItem() {
+                document.querySelectorAll('.dropdown-item').forEach(item => {
+                    item.classList.remove('active');
+                    
+                    const value = item.getAttribute('data-value');
+                    if (value === displayMode) {
+                        item.classList.add('active');
+                    }
+                });
+            }
+
+            function updateReportView() {
+                if (displayMode === 'two-page') {
+                    if (isSecondPage) {
+                        leftIcon.classList.add('active');
+                        leftIcon.classList.remove('inactive');
+                        
+                        rightIcon.classList.add('inactive');
+rightIcon.classList.remove('active');
+                        toggleLabel.textContent = 'Page 2';
+                    } else {
+                        leftIcon.classList.add('inactive');
+leftIcon.classList.remove('active');
+rightIcon.classList.add('active');
+rightIcon.classList.remove('inactive');
+toggleLabel.textContent = 'Page 1';
+                    }
+                    
+                    currentPage = isSecondPage ? '2' : '1';
+                    localStorage.setItem('currentPage', currentPage);
+                    
+                    // Show toggle in two-page mode
+                    if (toggleSection) {
+                        toggleSection.style.display = 'flex';
+                    }
+                } else {
+                    // One page mode - hide the toggle
+                    toggleLabel.textContent = 'All Names';
+                    leftIcon.classList.remove('active', 'inactive');
+                    rightIcon.classList.remove('active', 'inactive');
+                    
+                        toggleSection.style.display = 'none';
+                    
+                }
+                
+                // Update visibility based on page and display mode
+                updateVisibility();
+                generateTableRows();
+                updateActiveDropdownItem();
+            }
+
+            // Update element visibility based on page and display mode
+            function updateVisibility() {
+                const header = document.querySelector('.header');
+                const information = document.querySelector('.information');
+                const informations = document.querySelector('.informations');
+                
+                if (displayMode === 'one-page') {
+                    // One page mode: show everything
+                    header.style.display = 'block';
+                    information.style.display = 'block';
+                    informations.style.display = 'block';
+                    
+                    // Show all header titles
+                    document.querySelectorAll('.header h4').forEach(h4 => {
+                        h4.style.display = 'block';
+                    });
+                } else {
+                    // Two page mode
+                    if (isSecondPage) {
+                        // Page 2 (19-36): Hide titles and info, show image and bottom info
+                        header.style.display = 'block'; // Keep header for logo
+                        document.querySelectorAll('.header h4').forEach(h4 => {
+                            h4.style.display = 'none'; // Hide titles but keep logo
+                        });
+                        information.style.display = 'none'; // Hide waktu, tempat, keterangan
+                        informations.style.display = 'block'; // Show bottom keterangan
+                    } else {
+                        // Page 1 (1-18): Show everything except bottom info
+                        header.style.display = 'block';
+                        document.querySelectorAll('.header h4').forEach(h4 => {
+                            h4.style.display = 'block'; // Show titles
+                        });
+                        information.style.display = 'block'; // Show waktu, tempat, keterangan
+                        informations.style.display = 'none'; // Hide bottom keterangan
+                    }
+                }
+            }
+
+            // Initialize fixed toggle position on left side
+            function initializeTogglePosition() {
+                if (toggleSection) {
+                    // Set fixed position on left side
+                    toggleSection.style.position = 'fixed';
+                    toggleSection.style.top = '15px'; // Same as buttons
+                    toggleSection.style.left = '20px'; // Left side
+                    toggleSection.style.right = 'auto';
+                    toggleSection.style.transform = 'none';
+                    toggleSection.style.zIndex = '1001';
+                    toggleSection.style.background = 'transparent';
+                    toggleSection.style.padding = '0';
+                    toggleSection.style.borderRadius = '5px';
+                    toggleSection.style.boxShadow = 'none';
+                    toggleSection.style.display = displayMode === 'two-page' ? 'flex' : 'none';
+                    toggleSection.style.marginTop = '0';
+                    
+                    // Style the toggle container
+                    const toggleContainer = toggleSection.querySelector('.toggle-container');
+                    if (toggleContainer) {
+                        toggleContainer.style.margin = '0';
+                        toggleContainer.style.justifyContent = 'flex-start';
+                        toggleContainer.style.background = 'transparent';
+                        toggleContainer.style.padding = '10px';
+                        toggleContainer.style.borderRadius = '5px';
+                        toggleContainer.style.gap = '10px';
+                    }
+                }
+            }
+
+            // Hamburger menu functionality
+            function setupHamburgerMenu() {
+                // Toggle dropdown menu
+                hamburgerMenu.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const isVisible = dropdownMenu.style.display === 'block';
+                    dropdownMenu.style.display = isVisible ? 'none' : 'block';
+                    
+                    // Create overlay if it doesn't exist
+                    let overlay = document.querySelector('.dropdown-overlay');
+                    if (!overlay) {
+                        overlay = document.createElement('div');
+                        overlay.className = 'dropdown-overlay';
+                        document.body.appendChild(overlay);
+                    }
+                    overlay.style.display = isVisible ? 'none' : 'block';
+                });
+
+                // Handle dropdown item clicks
+                document.querySelectorAll('.dropdown-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const value = item.getAttribute('data-value');
+                        if (value === 'one-page' || value === 'two-page') {
+                            displayMode = value;
+                            localStorage.setItem('displayMode', displayMode);
+                            updateReportView();
+                            
+                            // Close dropdown
+                            dropdownMenu.style.display = 'none';
+                            document.querySelector('.dropdown-overlay').style.display = 'none';
+                            
+                            // Dispatch display mode change event
+                            window.dispatchEvent(new CustomEvent('displayModeChange', { detail: { mode: displayMode } }));
+                        }
+                    });
+                });
+
+                // Close dropdown when clicking outside
+                document.addEventListener('click', (e) => {
+                    if (!hamburgerMenu.contains(e.target) && !dropdownMenu.contains(e.target)) {
+                        dropdownMenu.style.display = 'none';
+                        const overlay = document.querySelector('.dropdown-overlay');
+                        if (overlay) overlay.style.display = 'none';
+                    }
+                });
+
+                // Close dropdown on escape key
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') {
+                        dropdownMenu.style.display = 'none';
+                        const overlay = document.querySelector('.dropdown-overlay');
+                        if (overlay) overlay.style.display = 'none';
+                    }
+                });
+            }
+
+            // Initialize button positions
+            function initializeButtonPositions() {
+                // Hamburger menu position (right side)
+                if (hamburgerMenu) {
+                    hamburgerMenu.style.position = 'fixed';
+                    hamburgerMenu.style.top = '15px';
+                    hamburgerMenu.style.right = '20px';
+                    hamburgerMenu.style.zIndex = '1001';
+                }
+
+                // Download button position (left of hamburger)
+                const downloadButton = document.getElementById('download-paper');
+                if (downloadButton) {
+                    downloadButton.style.position = 'fixed';
+                    downloadButton.style.top = '15px';
+                    downloadButton.style.right = '70px'; // Position to left of hamburger
+                    downloadButton.style.zIndex = '1001';
+                }
+
+                // Dropdown menu position
+                if (dropdownMenu) {
+                    dropdownMenu.style.position = 'fixed';
+                    dropdownMenu.style.top = '60px';
+                    dropdownMenu.style.right = '20px';
+                    dropdownMenu.style.zIndex = '1002';
+                }
+            }
+
+            // Event listeners for toggle icons
+            leftIcon.addEventListener('click', () => {
+                if (displayMode === 'two-page') {
+                    isSecondPage = false;
+                    updateReportView();
+                    window.dispatchEvent(new CustomEvent('syncPageChange', { detail: { page: 1 } }));
+                }
+            });
+
+            rightIcon.addEventListener('click', () => {
+                if (displayMode === 'two-page') {
+                    isSecondPage = true;
+                    updateReportView();
+                    window.dispatchEvent(new CustomEvent('syncPageChange', { detail: { page: 2 } }));
+                }
+            });
+            
+            // Load titles from localStorage and apply to report
+            function loadTitles() {
+                const savedTitles = JSON.parse(localStorage.getItem('reportTitles')) || [];
+                const title1 = document.getElementById('report-title1');
+                const title2 = document.getElementById('report-title2');
+                const title3 = document.getElementById('report-title3');
+                
+                if (title1) title1.textContent = savedTitles[0] || defaultTitles[0];
+                if (title2) title2.textContent = savedTitles[1] || defaultTitles[1];
+                if (title3) title3.textContent = savedTitles[2] || defaultTitles[2];
+                
+                console.log('report.js: Titles loaded:', savedTitles);
+            }
+            
+            // Load waktu, tempat, keterangan from localStorage
+            function loadAttendanceInfo() {
+                const savedInfo = JSON.parse(localStorage.getItem('attendanceInfo')) || {};
+                const infoSection = document.querySelector('.information');
+                
+                if (infoSection) {
+                    infoSection.innerHTML = `
+                        <p>Waktu&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: ${savedInfo.waktu || ""}</p> 
+                        <p>Tempat&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: ${savedInfo.tempat || ""}</p>
+                        <p>Keterangan&nbsp;&nbsp;&nbsp;: ${savedInfo.keterangan || ""}</p>
+                    `;
+                }
+                console.log('report.js: Attendance info loaded:', savedInfo);
+            }
+            
+            // Generate table rows for current page
+            function generateTableRows() {
+                const tbody = document.getElementById('report-table-body');
+                tbody.innerHTML = '';
+                
+                // Check if there are any names to display
+                if (rowHeaderNames.length === 0) {
+                    console.log('report.js: No names found in localStorage, table will be empty');
+                    createEmptyTableStructure();
+                    return;
+                }
+                
+                let startIndex, endIndex, displayOffset;
+                
+                if (displayMode === 'one-page') {
+                    // One page mode: show only 20 names
+                    startIndex = 0;
+                    endIndex = 18;
+                    displayOffset = 1;
+                } else {
+                    // Two page mode: original behavior
+                    startIndex = isSecondPage ? 20 : 0;
+                    endIndex = isSecondPage ? 40 : 20;
+                    displayOffset = isSecondPage ? 21 : 1;
+                }
+                
+                const pageNames = rowHeaderNames.slice(startIndex, endIndex);
+                
+                // Check if current page has any names
+                const hasNamesOnPage = pageNames.some(name => name && name.trim() !== '');
+                if (!hasNamesOnPage) {
+                    console.log('report.js: No names on current page', currentPage);
+                    createEmptyTableStructure();
+                    return;
+                }
+                
+                for (let i = 0; i < pageNames.length; i += 2) {
+                    // Skip empty rows at the end
+                    if (!pageNames[i] && (!pageNames[i + 1] || pageNames[i + 1].trim() === '')) {
+                        continue;
+                    }
+                    
+                    const actualIndex1 = startIndex + i;
+                    const actualIndex2 = startIndex + i + 1;
+                    const displayNumber1 = i + displayOffset;
+                    const displayNumber2 = i + displayOffset + 1;
+                    
+                    const row1 = document.createElement('tr');
+                    row1.innerHTML = `
+                        <td>${displayNumber1}.</td>
+                        <td>${pageNames[i] || ''}</td>
+                        <td rowspan="2">
+                            <div class="signature-number">${displayNumber1}.</div>
+                            <div class="signature-wrapper">
+                                <div class="signature" data-name="${pageNames[i] || ''}"></div>
+                            </div>
+                        </td>
+                        <td rowspan="2">
+                            ${pageNames[i + 1] ? `<div class="signature-number">${displayNumber2}.</div>` : ''}
+                            <div class="signature-wrapper">
+                                <div class="signature" data-name="${pageNames[i + 1] || ''}"></div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="keterangan-container">
+                                <span class="keterangan-number">${displayNumber1}.</span>
+                                <select class="keterangan" data-name="${pageNames[i] || ''}">
+                                    <option value=""> </option>
+                                    <option value="I">I</option>
+                                    <option value="S">S</option>
+                                    <option value="TK">TK</option>
+                                </select>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(row1);
+                    
+                    if (pageNames[i + 1]) {
+                        const row2 = document.createElement('tr');
+                        row2.innerHTML = `
+                            <td>${displayNumber2}.</td>
+                            <td>${pageNames[i + 1] || ''}</td>
+                            <td>
+                                <div class="keterangan-container">
+                                    <span class="keterangan-number">${displayNumber2}.</span>
+                                    <select class="keterangan" data-name="${pageNames[i + 1] || ''}">
+                                        <option value=""> </option>
+                                        <option value="I">I</option>
+                                        <option value="S">S</option>
+                                        <option value="TK">TK</option>
+                                    </select>
+                                </div>
+                            </td>
+                        `;
+                        tbody.appendChild(row2);
+                    }
+                }
+                
+                attachEventListeners();
+                loadSignaturesAndKeterangan(); // Load signatures after generating rows
+                console.log('report.js: Table generated for page', currentPage, 'mode', displayMode, 'showing names', displayOffset, 'to', displayOffset + pageNames.length - 1);
+            }
+
+            // Create empty table structure for better visual appearance
+            function createEmptyTableStructure() {
+                const tbody = document.getElementById('report-table-body');
+                const isOnePage = displayMode === 'one-page';
+                const rowCount = isOnePage ? 9 : 10;
+                
+                for (let i = 0; i < rowCount; i++) {
+                    const displayNumber1 = (isSecondPage && !isOnePage ? 21 : 1) + (i * 2);
+                    const displayNumber2 = displayNumber1 + 1;
+                    
+                    const row1 = document.createElement('tr');
+                    row1.innerHTML = `
+                        <td>${displayNumber1}.</td>
+                        <td></td>
+                        <td rowspan="2">
+                            <div class="signature-number">${displayNumber1}.</div>
+                            <div class="signature-wrapper">
+                                <div class="signature" data-name=""></div>
+                            </div>
+                        </td>
+                        <td rowspan="2">
+                            <div class="signature-number">${displayNumber2}.</div>
+                            <div class="signature-wrapper">
+                                <div class="signature" data-name=""></div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="keterangan-container">
+                                <span class="keterangan-number">${displayNumber1}.</span>
+                                <select class="keterangan" data-name="">
+                                    <option value=""> </option>
+                                    <option value="I">I</option>
+                                    <option value="S">S</option>
+                                    <option value="TK">TK</option>
+                                </select>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(row1);
+                    
+                    const row2 = document.createElement('tr');
+                    row2.innerHTML = `
+                        <td>${displayNumber2}.</td>
+                        <td></td>
+                        <td>
+                            <div class="keterangan-container">
+                                <span class="keterangan-number">${displayNumber2}.</span>
+                                <select class="keterangan" data-name="">
+                                    <option value=""> </option>
+                                    <option value="I">I</option>
+                                    <option value="S">S</option>
+                                    <option value="TK">TK</option>
+                                </select>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(row2);
+                }
+                
+                attachEventListeners();
+                loadSignaturesAndKeterangan();
+            }
+            
+            // Set Indonesian date
+            function setDynamicDate() {
+                const dateDiv = document.getElementById('report-date');
+                const savedData = localStorage.getItem('tanggalPresensi');
+                
+                if (savedData) {
+                    const dateObj = new Date(savedData);
+const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jum\'at', 'Sabtu'];
+const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+dateDiv.textContent = `${days[dateObj.getDay()]}, ${dateObj.getDate()} ${months[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
+                }
+                
+                else {
+                    const today = new Date();
+const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jum\'at', 'Sabtu'];
+const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+dateDiv.textContent = `${days[today.getDay()]}, ${today.getDate()} ${months[today.getMonth()]} ${today.getFullYear()}`;
+                }
+            }
+            
+            // Load signatures & keterangan from localStorage - FIXED VERSION
+            function loadSignaturesAndKeterangan() {
+                const data = JSON.parse(localStorage.getItem('spreadsheetData')) || {};
+                console.log('report.js: Loading signatures from spreadsheetData:', Object.keys(data).length, 'entries found');
+                
+                document.querySelectorAll('.signature').forEach(div => {
+                    const name = div.dataset.name;
+                    if (!name || name.trim() === '') {
+                        div.innerHTML = '';
+                        return;
+                    }
+                    
+                    console.log('report.js: Looking for signature for:', name);
+                    
+                    // DIRECT MATCH - check for exact name first
+                    if (data[name] && data[name].image) {
+                        console.log('report.js: Found exact signature match for:', name);
+                        const img = document.createElement('img');
+                        img.src = data[name].image;
+                        img.style.cssText = 'max-width:100%; max-height:100%; object-fit:contain; display: block;';
+                        img.alt = `Signature for ${name}`;
+                        div.innerHTML = '';
+                        div.appendChild(img);
+                    } 
+                    // CASE-INSENSITIVE MATCH - if exact match fails
+                    else {
+                        const normalizedName = name.toLowerCase().trim();
+                        const matchingKey = Object.keys(data).find(key => 
+                            key.toLowerCase().trim() === normalizedName
+                        );
+                        
+                        if (matchingKey && data[matchingKey]?.image) {
+                            console.log('report.js: Found case-insensitive signature match for:', name, 'as', matchingKey);
+                            const img = document.createElement('img');
+                            img.src = data[matchingKey].image;
+                            img.style.cssText = 'max-width:100%; max-height:100%; object-fit:contain; display: block;';
+                            img.alt = `Signature for ${name}`;
+                            div.innerHTML = '';
+                            div.appendChild(img);
+                        } else {
+                            console.log('report.js: No signature found for:', name);
+                            div.innerHTML = '';
+                        }
+                    }
+                });
+                
+                // Load keterangan with same matching logic
+                document.querySelectorAll('.keterangan').forEach(select => {
+                    const name = select.dataset.name;
+                    if (!name || name.trim() === '') {
+                        select.value = '';
+                        return;
+                    }
+                    
+                    // Direct match
+                    if (data[name] && data[name].keterangan) {
+                        select.value = data[name].keterangan;
+                    } 
+                    // Case-insensitive match
+                    else {
+                        const normalizedName = name.toLowerCase().trim();
+                        const matchingKey = Object.keys(data).find(key => 
+                            key.toLowerCase().trim() === normalizedName
+                        );
+                        
+                        if (matchingKey && data[matchingKey]?.keterangan) {
+                            select.value = data[matchingKey].keterangan;
+                        } else {
+                            select.value = '';
+                        }
+                    }
+                });
+                
+                updateSignatureIndicators();
+            }
+            
+            // Update signature indicators (add has-signature class)
+            function updateSignatureIndicators() {
+                document.querySelectorAll('.signature-wrapper').forEach(wrapper => {
+                    const signature = wrapper.querySelector('.signature');
+                    const hasImage = signature.querySelector('img') !== null;
+                    if (hasImage) {
+                        wrapper.classList.add('has-signature');
+                    } else {
+                        wrapper.classList.remove('has-signature');
+                    }
+                });
+            }
+            
+            // Delete signature function
+            function deleteSignature(name) {
+                const data = JSON.parse(localStorage.getItem('spreadsheetData')) || {};
+                const key = Object.keys(data).find(k => k.toLowerCase() === name.toLowerCase());
+                
+                if (key && data[key]) {
+                    // Remove image but keep keterangan if it exists
+                    delete data[key].image;
+                    // If no other data exists for this person, remove the entire entry
+                    if (!data[key].keterangan) {
+                        delete data[key];
+                    }
+                    localStorage.setItem('spreadsheetData', JSON.stringify(data));
+                    loadSignaturesAndKeterangan();
+                    console.log('report.js: Signature deleted for:', name);
+                }
+            }
+            
+      function showDeleteModal(name) {
+    const modal = document.getElementById('deleteModal');
+    const deleteNameSpan = document.getElementById('deleteName');
+    const confirmBtn = document.getElementById('confirmDelete');
+    const cancelBtn = document.getElementById('cancelDelete');
+    const body = document.body;
+    
+    deleteNameSpan.textContent = name;
+    modal.style.display = 'flex';
+    
+    // Prevent background scroll
+    body.classList.add('modal-open');
+    
+    // Remove existing event listeners
+    confirmBtn.replaceWith(confirmBtn.cloneNode(true));
+    cancelBtn.replaceWith(cancelBtn.cloneNode(true));
+    
+    // Get new references
+    const newConfirmBtn = document.getElementById('confirmDelete');
+    const newCancelBtn = document.getElementById('cancelDelete');
+    
+    newConfirmBtn.onclick = () => {
+        deleteSignature(name);
+        modal.style.display = 'none';
+        body.classList.remove('modal-open'); // Re-enable scroll
+    };
+    
+    newCancelBtn.onclick = () => {
+        modal.style.display = 'none';
+        body.classList.remove('modal-open'); // Re-enable scroll
+    };
+    
+    // Close modal when clicking outside
+    modal.onclick = (e) => {
+        if (e.target === modal) {
+            modal.style.display = 'none';
+            body.classList.remove('modal-open'); // Re-enable scroll
+        }
+    };
+    
+    // Close modal on Escape key
+    const closeOnEscape = (e) => {
+        if (e.key === 'Escape') {
+            modal.style.display = 'none';
+            body.classList.remove('modal-open');
+            document.removeEventListener('keydown', closeOnEscape);
+        }
+    };
+    document.addEventListener('keydown', closeOnEscape);
+}
+            
+// MAIN DOWNLOAD FUNCTION - PDF GENERATION
+function downloadPaper() {
+    const element = document.getElementById('report-container');
+    const buttons = document.querySelectorAll('#clear-signatures, #download-paper, .page-toggle-section, .btn-hamburger-menu');
+    buttons.forEach(b => b.style.display = 'none');
+    
+    // Hide modal if open
+    document.getElementById('deleteModal').style.display = 'none';
+    
+    // Force perfect rendering
+    void element.offsetHeight;
+    
+    html2canvas(element, {
+        scale: 3, // Higher scale for better quality in PDF
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        width: element.scrollWidth,
+        height: element.scrollHeight,
+        windowWidth: element.scrollWidth,
+        windowHeight: element.scrollHeight,
+        imageRendering: 'pixelated',
+        allowTaint: false,
+        foreignObjectRendering: false
+    }).then(canvas => {
+        buttons.forEach(b => b.style.display = '');
+        
+        // Create PDF
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4'
+        });
+        
+        // Calculate dimensions to fit A4 page
+        const imgWidth = 210; // A4 width in mm
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        
+        // Add image to PDF
+        const imgData = canvas.toDataURL('image/png', 1.0);
+        pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+        
+        // Generate filename
+        const pageSuffix = displayMode === 'one-page' ? '_full' : (currentPage === '2' ? '_page2' : '_page1');
+        const modeSuffix = displayMode === 'one-page' ? '_single' : '_multi';
+        const fileName = `Presensi_${new Date().toISOString().slice(0,10)}${modeSuffix}${pageSuffix}.pdf`;
+        
+        // Save PDF
+        pdf.save(fileName);
+        
+    }).catch(err => {
+        buttons.forEach(b => b.style.display = '');
+        console.error(err);
+        alert('Gagal membuat PDF. Coba refresh halaman.');
+    });
+}
+            
+            // Attach click & change events
+            function attachEventListeners() {
+                // Signature click events - show delete confirmation
+                document.querySelectorAll('.signature-wrapper').forEach(wrapper => {
+                    wrapper.onclick = (e) => {
+                        e.stopPropagation();
+                        const signature = wrapper.querySelector('.signature');
+                        const name = signature.dataset.name;
+                        if (!name || name.trim() === '') return;
+                        
+                        // Check if signature has an image
+                        const hasImage = signature.querySelector('img') !== null;
+                        if (hasImage) {
+                            showDeleteModal(name);
+                        }
+                    };
+                });
+                
+                // Keterangan change events
+                document.querySelectorAll('.keterangan').forEach(select => {
+                    select.onchange = () => {
+                        const name = select.dataset.name;
+                        if (name && name.trim() !== '') {
+                            saveKeterangan(name, select.value);
+                        }
+                    };
+                });
+            }
+            
+            // Debug function to check signature data
+            function debugSignatureData() {
+                const data = JSON.parse(localStorage.getItem('spreadsheetData')) || {};
+                console.log('=== SIGNATURE DEBUG INFO ===');
+                console.log('Total entries in spreadsheetData:', Object.keys(data).length);
+                console.log('All names with signatures:', Object.keys(data).filter(key => data[key]?.image));
+                console.log('All names in attendance:', JSON.parse(localStorage.getItem('attendanceNames')) || []);
+                console.log('=== END DEBUG ===');
+            }
+            
+            // Listen for sync events from index.html
+            window.addEventListener('syncPageChange', (event) => {
+                if (displayMode === 'two-page') {
+                    isSecondPage = event.detail.page === 2;
+                    currentPage = event.detail.page.toString();
+                    localStorage.setItem('currentPage', currentPage);
+                    updateReportView();
+                }
+            });
+
+            // Listen for display mode changes from index.html
+            window.addEventListener('displayModeChange', (event) => {
+                displayMode = event.detail.mode;
+                localStorage.setItem('displayMode', displayMode);
+                updateReportView();
+            });
+            
+            // Listen for signature saved events
+            window.addEventListener('signatureSaved', (event) => {
+                console.log('report.js: Signature saved event received for:', event.detail.name);
+                loadSignaturesAndKeterangan();
+            });
+            
+            // Listen for storage events (when other tabs update data)
+            window.addEventListener('storage', (event) => {
+                console.log('report.js: Storage event detected for key:', event.key);
+                if (event.key === 'currentPage') {
+                    const newPage = localStorage.getItem('currentPage');
+                    isSecondPage = newPage === '2';
+                    updateReportView();
+                } else if (event.key === 'displayMode') {
+                    displayMode = localStorage.getItem('displayMode') || 'two-page';
+                    updateReportView();
+                } else if (event.key === 'attendanceNames') {
+                    rowHeaderNames = JSON.parse(localStorage.getItem('attendanceNames')) || [];
+                    generateTableRows();
+                } else if (event.key === 'reportTitles' || event.key === 'attendanceInfo') {
+                    loadTitles();
+                    loadAttendanceInfo();
+                } else if (event.key === 'tanggalPresensi') {
+                    setDynamicDate();
+                } else if (event.key === 'spreadsheetData') {
+                    console.log('report.js: spreadsheetData updated, reloading signatures');
+                    loadSignaturesAndKeterangan();
+                }
+            });
+            
+            // Listen for names updates
+            window.addEventListener('namesUpdate', () => {
+                rowHeaderNames = JSON.parse(localStorage.getItem('attendanceNames')) || [];
+                generateTableRows();
+            });
+            
+            window.addEventListener('storageUpdate', () => {
+                console.log('report.js: storageUpdate event received');
+                loadSignaturesAndKeterangan();
+            });
+            
+            // Buttons
+            document.getElementById('download-paper')?.addEventListener('click', downloadPaper);
+            
+            // Initialize the application
+            console.log('report.js: Initializing application');
+            loadTitles();
+            loadAttendanceInfo();
+            setDynamicDate();
+            initializeTogglePosition();
+            initializeButtonPositions();
+            setupHamburgerMenu();
+            updateReportView();
+            updateActiveDropdownItem();
+            
+            // Make debug function available globally
+            window.debugSignatureData = debugSignatureData;
+        });
+        
+        // ORGANIZATION SELECTION – SHOW ONLY ONCE + DISABLE SCROLL
+document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('orgModal');
+    const body = document.body;
+    const selectedOrg = localStorage.getItem('selectedOrganization');
+    
+    // If already selected → do nothing
+    if (selectedOrg) {
+        modal.classList.remove('show');
+        return;
+    }
+    
+    // Show modal + DISABLE SCROLL
+    modal.classList.add('show');
+    body.classList.add('modal-open'); // ← This disables scroll
+    
+    // When user selects an organization
+    document.querySelectorAll('.org-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const org = btn.getAttribute('data-org');
+            localStorage.setItem('selectedOrganization', org);
+            
+            // Re-enable scroll + hide modal smoothly
+            body.classList.remove('modal-open'); // ← Re-enable scroll
+            modal.style.opacity = '0';
+            setTimeout(() => {
+                modal.classList.remove('show');
+            }, 400);
+        });
+    });
+    
+    // Optional: Prevent closing without choosing
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            // User can't close by clicking outside → must choose
+        }
+    });
+});
+// Organization Change Functionality
+document.addEventListener('DOMContentLoaded', () => {
+    const changeOrgItem = document.getElementById('change-org-item');
+    const orgChangeModal = document.getElementById('orgChangeModal');
+    const cancelOrgChangeBtn = document.getElementById('cancelOrgChange');
+    const body = document.body;
+    
+    if (changeOrgItem && orgChangeModal) {
+        let previousActiveItem = null;
+        
+        // When "Change Organization" is clicked
+        changeOrgItem.addEventListener('click', (e) => {
+            e.stopPropagation();
+            
+            // Store the currently active item before opening modal
+            const activeItem = document.querySelector('.dropdown-item.active');
+            if (activeItem) {
+                previousActiveItem = activeItem.getAttribute('data-value');
+            }
+            
+            showOrgChangeModal();
+        });
+        
+        // When organization is selected
+        document.querySelectorAll('.org-change-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const org = btn.getAttribute('data-org');
+                localStorage.setItem('selectedOrganization', org);
+                hideOrgChangeModal();
+                showConfirmationMessage(`Organisasi berhasil diubah ke: ${org}`);
+                
+                // Restore previous active state
+                restorePreviousActiveState();
+            });
+        });
+        
+        // Cancel button
+        if (cancelOrgChangeBtn) {
+            cancelOrgChangeBtn.addEventListener('click', () => {
+                hideOrgChangeModal();
+                // Restore previous active state when cancelled
+                restorePreviousActiveState();
+            });
+        }
+        
+        // Close modal when clicking outside
+        orgChangeModal.addEventListener('click', (e) => {
+            if (e.target === orgChangeModal) {
+                hideOrgChangeModal();
+                // Restore previous active state when clicking outside
+                restorePreviousActiveState();
+            }
+        });
+        
+        // Close modal on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && orgChangeModal.classList.contains('show')) {
+                hideOrgChangeModal();
+                // Restore previous active state on escape
+                restorePreviousActiveState();
+            }
+        });
+        
+        // Function to show organization change modal
+        function showOrgChangeModal() {
+            // Close dropdown menu if open
+            const dropdownMenu = document.getElementById('dropdown-menu');
+            if (dropdownMenu) {
+                dropdownMenu.style.display = 'none';
+            }
+            
+            // Close overlay if exists
+            const overlay = document.querySelector('.dropdown-overlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+            
+            // Show organization change modal
+            orgChangeModal.classList.add('show');
+            body.classList.add('modal-open');
+        }
+        
+        // Function to hide organization change modal
+        function hideOrgChangeModal() {
+            orgChangeModal.classList.remove('show');
+            body.classList.remove('modal-open');
+        }
+        
+        // Function to restore previous active state
+        function restorePreviousActiveState() {
+            if (previousActiveItem) {
+                // Re-open dropdown to show the active state
+                const dropdownMenu = document.getElementById('dropdown-menu');
+                if (dropdownMenu) {
+                    dropdownMenu.style.display = 'block';
+                    
+                    // Restore active class to the correct item
+                    document.querySelectorAll('.dropdown-item').forEach(item => {
+                        item.classList.toggle('active', item.getAttribute('data-value') === previousActiveItem);
+                    });
+                    
+                    // Keep dropdown open for a moment to show the restored state
+                    setTimeout(() => {
+                        dropdownMenu.style.display = 'none';
+                    }, 1000); // Keep visible for 1 second
+                }
+            }
+        }
+        
+        // Function to show confirmation message
+        function showConfirmationMessage(message) {
+            // Create a custom toast notification
+            const toast = document.createElement('div');
+            toast.textContent = message;
+            toast.style.cssText = `
+                position: fixed;
+                top: 55px;
+                left: 20px;
+                background: var(--secondary);
+                color: white;
+                padding: 12px 20px;
+                border-radius: 8px;
+                font-family: 'Poppins', sans-serif;
+                font-size: 14px;
+                z-index: 10000;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                animation: slideIn 0.3s ease;
+            `;
+            
+            document.body.appendChild(toast);
+            
+            // Remove toast after 3 seconds
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => {
+                    document.body.removeChild(toast);
+                }, 300);
+            }, 3000);
+            
+            // Add CSS for animations if not already present
+            if (!document.querySelector('#toast-animations')) {
+                const style = document.createElement('style');
+                style.id = 'toast-animations';
+                style.textContent = `
+                    @keyframes slideIn {
+                        from {
+                            transform: translateX(-100%);
+                            opacity: 0;
+                        }
+                        to {
+                            transform: translateX(0);
+                            opacity: 1;
+                        }
+                    }
+                    @keyframes slideOut {
+                        from {
+                            transform: translateX(0);
+                            opacity: 1;
+                        }
+                        to {
+                            transform: translateX(-100%);
+                            opacity: 0;
+                        }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        }
+        
+        // Debug: Log current organization
+        console.log('Current organization:', localStorage.getItem('selectedOrganization'));
+    }
+});
+// Quick organization color switcher
+const orgColors = {
+    'AMI': {
+        primary: '#736b23',
+        secondary: '#9ade24',
+        accent: '#f5de3e',
+        light: '#ecf0f1',
+        dark: '#0d0a06'
+    },
+    'OSIS': {
+        primary: '#60312f',
+        secondary: '#da3235',
+        accent: '#e1b928',
+        light: '#ecf0f1',
+        dark: '#0d0a06'
+    },
+    'DA': {
+        primary: '#570006',
+        secondary: '#ad0c0e',
+        accent: '#faed1a',
+        light: '#ecf0f1',
+        dark: '#0d0a06'
+    },
+    'MPS': {
+        primary: '#68b9e2',
+        secondary: '#79d0f9',
+        accent: '#e7b71d',
+        light: '#ecf0f1',
+        dark: '#0d0a06'
+    }
+};
+
+function applyOrgColors(org) {
+    const colors = orgColors[org] || orgColors['AMI'];
+    
+    // Update CSS variables
+    document.documentElement.style.setProperty('--primary', colors.primary);
+    document.documentElement.style.setProperty('--secondary', colors.secondary);
+    document.documentElement.style.setProperty('--accent', colors.accent);
+    document.documentElement.style.setProperty('--light', colors.light);
+    document.documentElement.style.setProperty('--dark', colors.dark);
+    
+    localStorage.setItem('selectedOrganization', org);
+}
+
+// Load on startup
+document.addEventListener('DOMContentLoaded', () => {
+    const org = localStorage.getItem('selectedOrganization') || 'AMI';
+    applyOrgColors(org);
+});
+
+// Update when organization changes
+window.addEventListener('organizationChanged', (e) => {
+    if (e.detail && e.detail.org) {
+        applyOrgColors(e.detail.org);
+    }
+});
+// Password protection for each organization
+const orgPasswords = {
+    'AMI': 'ami27',
+    'OSIS': 'osis04',
+    'MPS': 'mps20',
+    'DA': 'da09'
+};
+
+// Add password modal HTML to each page
+const passwordModalHTML = `
+<div id="passwordModal" class="modal password-modal">
+    <div class="modal-content password-modal-content">
+        <h3>Masukkan Password</h3>
+        <p class="password-subtitle">Organisasi: <span id="selectedOrgName"></span></p>
+        <div class="password-input-group">
+            <input type="password" id="passwordInput" class="password-input" 
+                   placeholder="Masukkan password" maxlength="10">
+            <button id="showPasswordToggle" class="btn-show-password">
+                <span class="material-symbols-outlined">visibility</span>
+            </button>
+        </div>
+        <p id="passwordError" class="password-error"></p>
+        <div class="password-buttons">
+            <button id="submitPassword" class="btn-submit-password">Masuk</button>
+            <button id="cancelPassword" class="btn-cancel-password">Batal</button>
+        </div>
+        <div class="password-hint">
+            <small>Password untuk setiap organisasi berbeda-beda.</small>
+        </div>
+    </div>
+</div>
+`;
+
+// Add CSS styles for password modal
+const passwordModalCSS = `
+/* Password Modal Styles */
+.password-modal {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 99999;
+    backdrop-filter: blur(10px);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.4s ease;
+}
+
+.password-modal.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.password-modal-content {
+    background: white;
+    padding: 40px 30px;
+    border-radius: 16px;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.4);
+    text-align: center;
+    max-width: 380px;
+    width: 92%;
+    transform: scale(0.9);
+    animation: modalPop 0.5s ease-out forwards;
+}
+
+.password-modal-content h3 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 8px;
+}
+
+.password-subtitle {
+    color: var(--text-light);
+    margin-bottom: 25px;
+    font-size: 14px;
+}
+
+.password-subtitle span {
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.password-input-group {
+    position: relative;
+    margin-bottom: 15px;
+}
+
+.password-input {
+    width: 100%;
+    padding: 14px 50px 14px 16px;
+    border: 2px solid #ddd;
+    border-radius: 10px;
+    font-size: 16px;
+    font-family: 'Poppins', sans-serif;
+    transition: all 0.3s ease;
+    background: #f8f9fa;
+}
+
+.password-input:focus {
+    outline: none;
+    border-color: var(--secondary);
+    background: white;
+    box-shadow: 0 0 0 3px rgba(154, 222, 36, 0.2);
+}
+
+.btn-show-password {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-light);
+    padding: 5px;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.btn-show-password:hover {
+    background: #f0f0f0;
+    color: var(--text);
+}
+
+.password-error {
+    color: #e74c3c;
+    font-size: 13px;
+    margin: 10px 0;
+    min-height: 18px;
+    text-align: left;
+}
+
+.password-buttons {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.btn-submit-password, .btn-cancel-password {
+    flex: 1;
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: 'Poppins', sans-serif;
+}
+
+.btn-submit-password {
+    background: var(--secondary);
+    color: white;
+}
+
+.btn-submit-password:hover {
+    background: var(--primary);
+    box-shadow: 0 8px 20px rgba(154, 222, 36, 0.3);
+}
+
+.btn-cancel-password {
+    background: #f0f0f0;
+    color: var(--text);
+}
+
+.btn-cancel-password:hover {
+    background: #e0e0e0;
+}
+
+.password-hint {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+    color: var(--text-light);
+    font-size: 12px;
+}
+
+@keyframes modalPop {
+    from { transform: scale(0.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+    20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+.shake {
+    animation: shake 0.5s ease-in-out;
+}
+`;
+
+// Initialize password protection
+function initializePasswordProtection() {
+    // Add CSS to head
+    if (!document.querySelector('#password-modal-styles')) {
+        const style = document.createElement('style');
+        style.id = 'password-modal-styles';
+        style.textContent = passwordModalCSS;
+        document.head.appendChild(style);
+    }
+    
+    // Add password modal to body
+    if (!document.getElementById('passwordModal')) {
+        document.body.insertAdjacentHTML('beforeend', passwordModalHTML);
+    }
+    
+    const passwordModal = document.getElementById('passwordModal');
+    const selectedOrgName = document.getElementById('selectedOrgName');
+    const passwordInput = document.getElementById('passwordInput');
+    const submitPasswordBtn = document.getElementById('submitPassword');
+    const cancelPasswordBtn = document.getElementById('cancelPassword');
+    const showPasswordToggle = document.getElementById('showPasswordToggle');
+    const passwordError = document.getElementById('passwordError');
+    const body = document.body;
+    
+    let selectedOrganization = '';
+    let onSuccessCallback = null;
+    let originalActiveItem = null;
+    
+    // Toggle password visibility
+    showPasswordToggle.addEventListener('click', () => {
+        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordInput.setAttribute('type', type);
+        showPasswordToggle.querySelector('span').textContent = 
+            type === 'password' ? 'visibility' : 'visibility_off';
+    });
+    
+    // Show password modal
+    window.showPasswordModal = (org, successCallback) => {
+        selectedOrganization = org;
+        onSuccessCallback = successCallback;
+        
+        selectedOrgName.textContent = org;
+        passwordInput.value = '';
+        passwordInput.setAttribute('type', 'password');
+        showPasswordToggle.querySelector('span').textContent = 'visibility';
+        passwordError.textContent = '';
+        passwordError.style.display = 'none';
+        
+        passwordModal.classList.add('show');
+        body.classList.add('modal-open');
+        
+        // Focus on password input
+        setTimeout(() => {
+            passwordInput.focus();
+        }, 300);
+    };
+    
+    // Hide password modal
+    function hidePasswordModal() {
+        passwordModal.classList.remove('show');
+        body.classList.remove('modal-open');
+        selectedOrganization = '';
+        onSuccessCallback = null;
+    }
+    
+    // Validate password
+    function validatePassword() {
+        const enteredPassword = passwordInput.value.trim();
+        const correctPassword = orgPasswords[selectedOrganization];
+        
+        if (enteredPassword === correctPassword) {
+            // Password correct
+            if (onSuccessCallback) {
+                onSuccessCallback();
+            }
+            
+            // Save organization to localStorage
+            localStorage.setItem('selectedOrganization', selectedOrganization);
+            
+            // Dispatch organization changed event
+            window.dispatchEvent(new CustomEvent('organizationChanged', {
+                detail: { org: selectedOrganization }
+            }));
+            
+            hidePasswordModal();
+            showSuccessMessage(`Berhasil masuk ke ${selectedOrganization}`);
+            
+            return true;
+        } else {
+            // Password incorrect
+            passwordInput.classList.add('shake');
+            passwordError.textContent = 'Password salah. Coba lagi.';
+            passwordError.style.display = 'block';
+            passwordError.style.color = '#e74c3c';
+            
+            setTimeout(() => {
+                passwordInput.classList.remove('shake');
+            }, 500);
+            
+            // Clear input and focus
+            passwordInput.value = '';
+            passwordInput.focus();
+            
+            return false;
+        }
+    }
+    
+    // Submit password on Enter key
+    passwordInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            validatePassword();
+        }
+    });
+    
+    // Submit password button
+    submitPasswordBtn.addEventListener('click', validatePassword);
+    
+    // Cancel button
+    cancelPasswordBtn.addEventListener('click', () => {
+        hidePasswordModal();
+        
+        // Restore original active state
+        if (originalActiveItem) {
+            const dropdownMenu = document.getElementById('dropdown-menu');
+            if (dropdownMenu) {
+                dropdownMenu.style.display = 'block';
+                document.querySelectorAll('.dropdown-item').forEach(item => {
+                    item.classList.toggle('active', 
+                        item.getAttribute('data-value') === originalActiveItem);
+                });
+                
+                setTimeout(() => {
+                    dropdownMenu.style.display = 'none';
+                }, 1000);
+            }
+            originalActiveItem = null;
+        }
+    });
+    
+    // Close modal when clicking outside
+    passwordModal.addEventListener('click', (e) => {
+        if (e.target === passwordModal) {
+            hidePasswordModal();
+            
+            // Restore original active state
+            if (originalActiveItem) {
+                const dropdownMenu = document.getElementById('dropdown-menu');
+                if (dropdownMenu) {
+                    dropdownMenu.style.display = 'block';
+                    document.querySelectorAll('.dropdown-item').forEach(item => {
+                        item.classList.toggle('active', 
+                            item.getAttribute('data-value') === originalActiveItem);
+                    });
+                    
+                    setTimeout(() => {
+                        dropdownMenu.style.display = 'none';
+                    }, 1000);
+                }
+                originalActiveItem = null;
+            }
+        }
+    });
+    
+    // Close modal on Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && passwordModal.classList.contains('show')) {
+            hidePasswordModal();
+        }
+    });
+    
+    // Show success message
+    function showSuccessMessage(message) {
+        const toast = document.createElement('div');
+        toast.textContent = message;
+        toast.style.cssText = `
+            position: fixed;
+            top: 55px;
+            left: 20px;
+            background: var(--secondary);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 14px;
+            z-index: 10000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            animation: slideIn 0.3s ease;
+        `;
+        
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.animation = 'slideOut 0.3s ease';
+            setTimeout(() => {
+                document.body.removeChild(toast);
+            }, 300);
+        }, 3000);
+    }
+}
+
+// Modify organization change functionality to include password
+function modifyOrgChangeFunctionality() {
+    const changeOrgItem = document.getElementById('change-org-item');
+    const orgModal = document.getElementById('orgModal');
+    const orgChangeModal = document.getElementById('orgChangeModal');
+    const body = document.body;
+    
+    if (changeOrgItem) {
+        // Store original click handler
+        const originalClickHandler = changeOrgItem.onclick;
+        
+        // Override click handler for "Change Organization" in dropdown
+        changeOrgItem.addEventListener('click', (e) => {
+            e.stopPropagation();
+            
+            // Store current active item
+            const activeItem = document.querySelector('.dropdown-item.active');
+            if (activeItem) {
+                window.originalActiveItem = activeItem.getAttribute('data-value');
+            }
+            
+            // Show organization selection modal
+            if (orgChangeModal) {
+                orgChangeModal.classList.add('show');
+                body.classList.add('modal-open');
+                
+                // Close dropdown
+                const dropdownMenu = document.getElementById('dropdown-menu');
+                if (dropdownMenu) {
+                    dropdownMenu.style.display = 'none';
+                }
+                
+                // Close overlay if exists
+                const overlay = document.querySelector('.dropdown-overlay');
+                if (overlay) {
+                    overlay.style.display = 'none';
+                }
+            }
+        });
+    }
+    
+    // Modify organization button click handlers to require password
+    document.querySelectorAll('.org-btn, .org-change-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const org = btn.getAttribute('data-org');
+            
+            // Check if already selected (no password needed)
+            const currentOrg = localStorage.getItem('selectedOrganization');
+            if (currentOrg === org) {
+                // Same organization, just update
+                localStorage.setItem('selectedOrganization', org);
+                window.dispatchEvent(new CustomEvent('organizationChanged', {
+                    detail: { org: org }
+                }));
+                
+                // Close modals
+                if (orgModal) orgModal.classList.remove('show');
+                if (orgChangeModal) orgChangeModal.classList.remove('show');
+                body.classList.remove('modal-open');
+                
+                return;
+            }
+            
+            // Show password modal
+            window.showPasswordModal(org, () => {
+                // Success callback - close modals
+                if (orgModal) orgModal.classList.remove('show');
+                if (orgChangeModal) orgChangeModal.classList.remove('show');
+                body.classList.remove('modal-open');
+                
+                // Apply organization colors
+                applyOrgColors(org);
+            });
+        });
+    });
+    
+    // Also modify the initial organization selection
+    if (orgModal) {
+        document.querySelectorAll('.org-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const org = btn.getAttribute('data-org');
+                
+                // Show password modal
+                window.showPasswordModal(org, () => {
+                    // Success callback - close initial modal
+                    if (orgModal) {
+                        orgModal.style.opacity = '0';
+                        setTimeout(() => {
+                            orgModal.classList.remove('show');
+                            body.classList.remove('modal-open');
+                        }, 400);
+                    }
+                    
+                    // Apply organization colors
+                    applyOrgColors(org);
+                });
+            });
+        });
+    }
+}
+
+// Update the organization selection initialization
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize password protection
+    initializePasswordProtection();
+    
+    // Modify organization change functionality
+    modifyOrgChangeFunctionality();
+    
+    // Check if organization is already selected
+    const selectedOrg = localStorage.getItem('selectedOrganization');
+    const orgModal = document.getElementById('orgModal');
+    const body = document.body;
+    
+    // If no organization selected, show the modal
+    if (!selectedOrg && orgModal) {
+        setTimeout(() => {
+            orgModal.classList.add('show');
+            body.classList.add('modal-open');
+        }, 300);
+    }
+});
+
+// Update applyOrgColors function to check password if changing organization
+const originalApplyOrgColors = window.applyOrgColors;
+window.applyOrgColors = function(org) {
+    // If organization is changing, require password
+    const currentOrg = localStorage.getItem('selectedOrganization');
+    if (currentOrg && currentOrg !== org) {
+        window.showPasswordModal(org, () => {
+            // Password verified, apply colors
+            if (originalApplyOrgColors) {
+                originalApplyOrgColors(org);
+            }
+            
+            // Dispatch event
+            window.dispatchEvent(new CustomEvent('organizationChanged', {
+                detail: { org: org }
+            }));
+        });
+    } else {
+        // Same organization or no current org, apply directly
+        if (originalApplyOrgColors) {
+            originalApplyOrgColors(org);
+        }
+    }
+};
+
+// ===================== FIREBASE INTEGRATION FOR REPORT.HTML =====================
+
+// Save keterangan to Firebase
+function saveKeterangan(name, keterangan) {
+    const data = JSON.parse(localStorage.getItem('spreadsheetData')) || {};
+    if (!data[name]) {
+        data[name] = {};
+    }
+    data[name].keterangan = keterangan;
+    localStorage.setItem('spreadsheetData', JSON.stringify(data));
+    
+    // Save to Firebase
+    if (window.dbManager) {
+        window.dbManager.saveSignature(name, data[name]?.image || '', keterangan);
+    }
+}
+
+// Load signatures from Firebase
+async function loadSignaturesAndKeterangan() {
+    let data = {};
+    
+    // Try to load from Firebase first
+    if (window.dbManager) {
+        data = await window.dbManager.loadSignatures();
+    } else {
+        data = JSON.parse(localStorage.getItem('spreadsheetData')) || {};
+    }
+    
+    console.log('report.js: Loading signatures,', Object.keys(data).length, 'entries found');
+    
+    document.querySelectorAll('.signature').forEach(div => {
+        const name = div.dataset.name;
+        if (!name || name.trim() === '') {
+            div.innerHTML = '';
+            return;
+        }
+        
+        // Check for exact match first
+        if (data[name] && data[name].image) {
+            const img = document.createElement('img');
+            img.src = data[name].image;
+            img.style.cssText = 'max-width:100%; max-height:100%; object-fit:contain; display: block;';
+            img.alt = `Signature for ${name}`;
+            div.innerHTML = '';
+            div.appendChild(img);
+        }
+        // Case-insensitive match
+        else {
+            const normalizedName = name.toLowerCase().trim();
+            const matchingKey = Object.keys(data).find(key =>
+                key.toLowerCase().trim() === normalizedName
+            );
+            
+            if (matchingKey && data[matchingKey]?.image) {
+                const img = document.createElement('img');
+                img.src = data[matchingKey].image;
+                img.style.cssText = 'max-width:100%; max-height:100%; object-fit:contain; display: block;';
+                img.alt = `Signature for ${name}`;
+                div.innerHTML = '';
+                div.appendChild(img);
+            } else {
+                div.innerHTML = '';
+            }
+        }
+    });
+    
+    // Load keterangan
+    document.querySelectorAll('.keterangan').forEach(select => {
+        const name = select.dataset.name;
+        if (!name || name.trim() === '') {
+            select.value = '';
+            return;
+        }
+        
+        // Direct match
+        if (data[name] && data[name].keterangan) {
+            select.value = data[name].keterangan;
+        }
+        // Case-insensitive match
+        else {
+            const normalizedName = name.toLowerCase().trim();
+            const matchingKey = Object.keys(data).find(key =>
+                key.toLowerCase().trim() === normalizedName
+            );
+            
+            if (matchingKey && data[matchingKey]?.keterangan) {
+                select.value = data[matchingKey].keterangan;
+            } else {
+                select.value = '';
+            }
+        }
+    });
+    
+    updateSignatureIndicators();
+}
+
+// Delete signature from Firebase
+async function deleteSignature(name) {
+    const data = JSON.parse(localStorage.getItem('spreadsheetData')) || {};
+    const key = Object.keys(data).find(k => k.toLowerCase() === name.toLowerCase());
+    
+    if (key && data[key]) {
+        // Remove image but keep keterangan
+        delete data[key].image;
+        
+        if (!data[key].keterangan) {
+            delete data[key];
+        }
+        
+        localStorage.setItem('spreadsheetData', JSON.stringify(data));
+        
+        // Update Firebase
+        if (window.dbManager) {
+            await window.dbManager.saveSignature(key, '', data[key]?.keterangan || '');
+        }
+        
+        loadSignaturesAndKeterangan();
+        console.log('report.js: Signature deleted for:', name);
+    }
+}
+
+// Listen for Firebase sync updates
+window.addEventListener('syncDataUpdate', (event) => {
+    console.log('report.js: Firebase sync update received:', event.detail.type);
+    
+    if (event.detail.type === 'names') {
+        rowHeaderNames = event.detail.data;
+        generateTableRows();
+    } else if (event.detail.type === 'titles') {
+        const title1 = document.getElementById('report-title1');
+        const title2 = document.getElementById('report-title2');
+        const title3 = document.getElementById('report-title3');
+        
+        if (title1) title1.textContent = event.detail.data[0] || defaultTitles[0];
+        if (title2) title2.textContent = event.detail.data[1] || defaultTitles[1];
+        if (title3) title3.textContent = event.detail.data[2] || defaultTitles[2];
+    } else if (event.detail.type === 'info') {
+        const infoSection = document.querySelector('.information');
+        if (infoSection) {
+            infoSection.innerHTML = `
+                <p>Waktu&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: ${event.detail.data.waktu || ""}</p> 
+                <p>Tempat&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: ${event.detail.data.tempat || ""}</p>
+                <p>Keterangan&nbsp;&nbsp;&nbsp;: ${event.detail.data.keterangan || ""}</p>
+            `;
+        }
+    }
+});
+
+// Load Firebase data on startup
+window.addEventListener('firebaseDataLoaded', () => {
+    console.log('report.js: Firebase data loaded');
+    loadTitles();
+    loadAttendanceInfo();
+    generateTableRows();
+});
+
+// Initialize Firebase integration
+document.addEventListener('DOMContentLoaded', () => {
+    // Wait for Firebase to initialize
+    setTimeout(() => {
+        // Override organization change for Firebase
+        const orgButtons = document.querySelectorAll('.org-btn, .org-change-btn');
+        orgButtons.forEach(btn => {
+            const originalClick = btn.onclick;
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const org = btn.getAttribute('data-org');
+                
+                if (window.dbManager) {
+                    window.dbManager.setOrganization(org);
+                }
+                
+                // Close modals
+                const orgModal = document.getElementById('orgModal');
+                const orgChangeModal = document.getElementById('orgChangeModal');
+                if (orgModal) orgModal.classList.remove('show');
+                if (orgChangeModal) orgChangeModal.classList.remove('show');
+                document.body.classList.remove('modal-open');
+            });
+        });
+        
+        // Add manual sync button
+        const syncButton = document.createElement('button');
+        syncButton.innerHTML = '<span class="material-symbols-outlined">sync</span>';
+        syncButton.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: var(--secondary);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            z-index: 999;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+        syncButton.title = 'Sync with Firebase';
+        
+        syncButton.addEventListener('click', () => {
+            if (window.dbManager) {
+                window.dbManager.syncAllLocalData();
+            }
+        });
+        
+        document.body.appendChild(syncButton);
+        
+    }, 1500);
+});
+// Initialize Firebase integration for report.html
+document.addEventListener('DOMContentLoaded', () => {
+    // ... existing code ...
+    
+    // Firebase integration
+    if (window.firebaseIntegration) {
+        // Override saveKeterangan to include Firebase
+        window.saveKeterangan = async function(name, keterangan) {
+            const data = JSON.parse(localStorage.getItem('spreadsheetData') || '{}');
+            if (!data[name]) {
+                data[name] = {};
+            }
+            data[name].keterangan = keterangan;
+            localStorage.setItem('spreadsheetData', JSON.stringify(data));
+            
+            // Save to Firebase
+            if (window.firebaseIntegration.canSync()) {
+                const signatureData = data[name]?.image || '';
+                await window.firebaseIntegration.saveSignatureToFirebase(name, signatureData, keterangan);
+            }
+        };
+        
+        // Override deleteSignature to include Firebase
+        window.deleteSignature = async function(name) {
+            const data = JSON.parse(localStorage.getItem('spreadsheetData') || '{}');
+            const key = Object.keys(data).find(k => k.toLowerCase() === name.toLowerCase());
+            
+            if (key && data[key]) {
+                // Remove image but keep keterangan
+                const keterangan = data[key].keterangan || '';
+                delete data[key].image;
+                
+                if (!data[key].keterangan) {
+                    delete data[key];
+                }
+                
+                localStorage.setItem('spreadsheetData', JSON.stringify(data));
+                
+                // Update Firebase
+                if (window.firebaseIntegration.canSync()) {
+                    await window.firebaseIntegration.saveSignatureToFirebase(key, '', keterangan);
+                }
+                
+                loadSignaturesAndKeterangan();
+                console.log('report.js: Signature deleted for:', name);
+            }
+        };
+    }
+});
+// Di bagian JavaScript report.html, tambahkan:
+
+// Real-time signature updates
+window.addEventListener('firebaseSignaturesUpdate', (event) => {
+    console.log('report.html: Firebase signatures update received');
+    
+    // Update signatures in the table
+    loadSignaturesAndKeterangan();
+    
+    // Show notification
+    const signatureCount = Object.keys(event.detail.signatures || {}).length;
+    if (signatureCount > 0) {
+        const notification = document.createElement('div');
+        notification.innerHTML = `
+            <span class="material-symbols-outlined" style="margin-right: 8px; vertical-align: middle;">
+                sync
+            </span>
+            <span>${signatureCount} signatures updated from cloud</span>
+        `;
+        
+        notification.style.cssText = `
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            background: var(--secondary);
+            color: white;
+            z-index: 10000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            font-family: 'Poppins', sans-serif;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            animation: slideInRight 0.3s ease, fadeOut 0.3s ease 2.7s;
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            if (notification.parentNode) notification.remove();
+        }, 3000);
+    }
+});
+
+// Listen for all sync updates
+window.addEventListener('syncDataUpdate', (event) => {
+    console.log('report.html: Sync data update:', event.detail.type);
+    
+    switch (event.detail.type) {
+        case 'attendanceNames':
+            // Regenerate table with new names
+            rowHeaderNames = event.detail.data || [];
+            generateTableRows();
+            break;
+            
+        case 'reportTitles':
+            // Update report titles
+            const titles = event.detail.data || [];
+            document.getElementById('report-title1').textContent =
+                titles[0] || 'PRESENSI KEHADIRAN PESERTA';
+            document.getElementById('report-title2').textContent =
+                titles[1] || 'NAMA PROGRAM KERJA';
+            document.getElementById('report-title3').textContent =
+                titles[2] || 'MASA BAKTI TAHUN/TAHUN';
+            break;
+            
+        case 'attendanceInfo':
+            // Update info section
+            const info = event.detail.data || {};
+            const infoSection = document.querySelector('.information');
+            if (infoSection) {
+                infoSection.innerHTML = `
+                    <p>Waktu&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: ${info.waktu || ""}</p> 
+                    <p>Tempat&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: ${info.tempat || ""}</p>
+                    <p>Keterangan&nbsp;&nbsp;&nbsp;: ${info.keterangan || ""}</p>
+                `;
+            }
+            break;
+            
+        case 'signatures':
+            // Update signatures
+            loadSignaturesAndKeterangan();
+            break;
+    }
+});
+    </script>
+        <!-- ORGANIZATION CHANGE MODAL -->
+    <div id="orgChangeModal" class="modal org-change-modal">
+        <div class="modal-content org-change-modal-content">
+            <h3>Pilih Organisasi</h3>
+            <p class="org-change-subtitle">Pilih organisasi yang ingin Anda gunakan</p>
+            
+            <div class="org-change-options">
+                <button class="org-change-btn" data-org="MPS">
+                    MPS
+                </button>
+                <button class="org-change-btn" data-org="OSIS">
+                    OSIS
+                </button>
+                <button class="org-change-btn" data-org="AMI">
+                    AMI
+                </button>
+                <button class="org-change-btn" data-org="DA">
+                    DA
+                </button>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <button id="cancelOrgChange" class="btn-cancel" style="padding: 10px 20px;">
+                    Batal
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- ORGANIZATION SELECTION MODAL -->
+<div id="orgModal" class="modal org-modal">
+    <div class="modal-content org-modal-content">
+        <h3>Pilih Organisasi</h3>
+        <p class="org-subtitle">Pilih salah satu organisasi untuk melanjutkan</p>
+        
+        <div class="org-options">
+            <button class="org-btn" data-org="MPS">MPS</button>
+            <button class="org-btn" data-org="OSIS">OSIS</button>
+            <button class="org-btn" data-org="AMI">AMI</button>
+            <button class="org-btn" data-org="DA">DA</button>
+        </div>
+        
+        <p style="margin-top: 20px; font-size: 12px; color: #666;">
+            Anda harus memilih organisasi sebelum menggunakan aplikasi
+        </p>
+    </div>
+</div>
+<script src="firebase-config.js"></script>
+<script src="firebase-auth.js"></script>
+<script src="firebase-db.js"></script>
+</body>
+</html>
