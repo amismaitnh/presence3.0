@@ -1,0 +1,1448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signature Form</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="navbar.css">
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@24..48,100..700,0..1">
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+    </nav>
+    
+    <!-- Page Toggle Section -->
+    <div class="page-toggle-section">
+        <div class="toggle-container">
+            <a href="index.html"><span class="toggle-icon material-symbols-outlined">chevron_left</span></a>
+        </div>
+    </div>    
+    
+    <!-- ORGANIZATION SELECTION MODAL -->
+<div id="orgModal" class="modal org-modal">
+    <div class="modal-content org-modal-content">
+        <h3>Pilih Organisasi</h3>
+        <p class="org-subtitle">Pilih salah satu organisasi untuk melanjutkan</p>
+        
+        <div class="org-options">
+            <button class="org-btn" data-org="MPS">
+                Majelis Permusyawaratan Siswa<br>
+                <small>MPS</small>
+            </button>
+            <button class="org-btn" data-org="OSIS">
+                Organisasi Siswa Intra Sekolah<br>
+                <small>OSIS</small>
+            </button>
+            <button class="org-btn" data-org="AMI">
+                Aktivis Markaz Islami<br>
+                <small>AMI</small>
+            </button>
+            <button class="org-btn" data-org="DA">
+                Dewan Ambalan<br>
+                <small>DA</small>
+            </button>
+        </div>
+    </div>
+</div>
+    
+    <section class="signature-form-section">
+        <h2>Signature Form</h2>
+        <form id="signatureForm" class="signature-form">
+            <div class="form-group">
+                <label for="name">Name:</label>
+                <select id="name" required>
+                    <option value="" disabled selected>Select your name</option>
+                    <!-- Dynamically populated by JavaScript -->
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Signature:</label>
+                <canvas id="signatureCanvas" width="400" height="150"></canvas>
+            </div>
+            <div class="button-group">
+                <button type="button" id="clearSignature" class="btn-secondary">Clear Signature</button>
+                <button type="submit" class="btn-primary">Save Signature</button>
+            </div>
+        </form>
+    </section>
+    <style>
+        /* signature.css */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+        :root {
+            --primary: #736b23;
+            --secondary: #9ade24;
+            --accent: #f5de3e;
+            --light: #ecf0f1;
+            --dark: #0d0a06;
+            --text: #333;
+            --text-light: #777;
+            --gold: #FFD700;
+            --silver: #C0C0C0;
+            --bronze: #CD7F32;
+        }
+        
+/* Sync Notification Styles */
+.sync-notification {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    background: var(--secondary);
+    color: white;
+    z-index: 10000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    animation: slideInRight 0.3s ease, fadeOut 0.3s ease 2.7s;
+}
+
+.sync-notification.error {
+    background: #ff6b6b;
+}
+
+.sync-notification.success {
+    background: #6bcf7f;
+}
+
+.sync-notification.warning {
+    background: #ffd93d;
+    color: #333;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+/* Sync Status Indicator */
+#sync-status-indicator {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    z-index: 9999;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+}
+
+#sync-status-indicator:hover {
+    transform: scale(1.2);
+}
+
+/* Manual Sync Button */
+.btn-sync {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    background: var(--secondary);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    cursor: pointer;
+    z-index: 999;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.btn-sync:hover {
+    background: var(--primary);
+    transform: scale(1.1);
+}
+
+.btn-sync.syncing {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    color: #FFFFFF;
+    background-color: white;
+    margin: 0;
+    overflow-x: hidden;
+    font-weight: 400;
+}
+
+/* Prevent background scroll when modal is open */
+body.modal-open {
+    overflow: hidden;
+}
+
+        /* Page Toggle - Fixed Position on Left Side */
+        .page-toggle-section {
+            position: fixed;
+            top: 0;
+            left: 20px;
+            right: auto;
+            transform: none;
+            z-index: 1001;
+            background: transparent;
+            padding: 0;
+            box-shadow: none;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            margin: 0;
+        }
+        
+        .page-toggle-section .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: transparent;
+        }
+        
+        .page-toggle-section .toggle-icon {
+            font-size: 40px;
+            margin-top: 7px;
+            cursor: none;
+            padding: 8px;
+            border-radius: 50%;
+            color: var(--text);
+            background: transparent;
+            display: inline-block;
+        }
+        
+        .page-toggle-section .toggle-label {
+            font-weight: 600;
+            color: var(--text);
+            font-size: 14px;
+            margin: 0;
+            margin-top: -10px;
+        }
+
+.org-modal {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    backdrop-filter: blur(5px);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.4s ease;
+}
+
+.org-modal.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.org-modal-content {
+    background: white;
+    padding: 40px 30px;
+    border-radius: 16px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+    text-align: center;
+    max-width: 420px;
+    width: 92%;
+}
+
+.org-modal-content h3 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 8px;
+}
+
+.org-subtitle {
+    color: var(--text-light);
+    margin-bottom: 30px;
+    font-size: 14px;
+}
+
+.org-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.org-btn {
+    padding: 20px 12px;
+    background: white;
+    border: none;
+    border-radius: 14px;
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--text);
+    cursor: none;
+}
+
+.org-btn:hover {
+    background: var(--secondary);
+    color: white;
+    border-color: var(--secondary);
+    box-shadow: 0 12px 25px rgba(154,222,36,0.35);
+}
+
+.org-btn small {
+    display: block;
+    margin-top: 8px;
+    font-weight: normal;
+    font-size: 12px;
+    opacity: 0.9;
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+    .org-options { grid-template-columns: 1fr; }
+    .org-modal-content { padding: 35px 25px; }
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .org-options {
+        grid-template-columns: 1fr;
+    }
+    .org-modal-content {
+        padding: 30px 20px;
+    }
+}
+
+        /* Button Styles */
+        .btn-hamburger-menu {
+            position: fixed;
+            top: 15px;
+            right: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: none;
+            background: transparent;
+            border: none;
+            z-index: 1001;
+            color: var(--text);
+            transition: all 0.3s ease;
+        }
+
+        .btn-hamburger-menu:hover {
+            color: var(--secondary);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-download-paper {
+            position: fixed;
+            right: 70px;
+            padding: 7px;
+            border-radius: 5px;
+            cursor: none;
+            background: transparent;
+            border: none;
+            z-index: 1001;
+            color: var(--text);
+            transition: all 0.3s ease;
+        }
+
+        .btn-download-paper:hover {
+            color: var(--secondary);
+        }
+
+        /* Hamburger Menu Styles */
+        .btn-hamburger-menu {
+            position: fixed;
+            right: 20px;
+            padding: 7px;
+            border-radius: 5px;
+            cursor: none;
+            background: transparent;
+            border: none;
+            z-index: 1001;
+            color: var(--text);
+            transition: all 0.3s ease;
+        }
+
+        .btn-hamburger-menu:hover {
+            color: var(--secondary);
+        }
+
+        .dropdown-menu {
+            position: fixed;
+            top: 60px;
+            right: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            z-index: 1002;
+            display: none;
+            min-width: 150px;
+            overflow: hidden;
+            animation: dropdownFadeIn 0.2s ease-out;
+        }
+
+        @keyframes dropdownFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .dropdown-item {
+            padding: 12px 16px;
+            cursor: none;
+            color: var(--text);
+            font-family: 'Poppins', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .dropdown-item:hover {
+            background: var(--secondary);
+            color: var(--light);
+        }
+
+        .dropdown-item.active {
+            background: var(--secondary);
+            color: var(--light);
+        }
+
+        /* Overlay to close dropdown when clicking outside */
+        .dropdown-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            z-index: 1000;
+            display: none;
+        }
+
+.signature-form-section {
+    padding: 80px 20px;
+    max-width: 600px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.signature-form-section h2 {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 700;
+    font-size: 2rem;
+    color: var(--text);
+    text-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    margin-bottom: 20px;
+    margin-top: 20px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.signature-form-section p {
+    font-size: 1rem;
+    color: #FFFFFF;
+    margin-bottom: 30px;
+}
+
+.signature-form {
+    background-color: #FFFFFF;
+    padding: 40px;
+    border-radius: 10px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.signature-form:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 14px;
+    color: var(--text);
+    margin-bottom: 10px;
+    font-weight: 600;
+}
+
+.form-group select, .form-group canvas {
+    width: 100%;
+    padding: 8px;
+    border-radius: 5px;
+    font-size: 14px;
+    font-family: 'Poppins', sans-serif;
+    color: var(--text);
+    background-color: #FFFFFF;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.form-group select:focus, .form-group canvas:focus {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    outline: none;
+}
+
+.form-group canvas {
+    background-color: #FFFFFF;
+    width: 100%;
+    height: 280px;
+}
+
+.button-group {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+}
+
+.btn-primary {
+    display: inline-block;
+padding: 12px 30px;
+background: var(--secondary);
+color: white;
+border: none;
+border-radius: 5px;
+cursor: none;
+text-decoration: none;
+font-size: 1rem;
+font-weight: 600;
+transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    background: var(--primary);
+box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.btn-secondary {
+    display: inline-block;
+padding: 12px 30px;
+background: var(--secondary);
+color: white;
+border: none;
+border-radius: 5px;
+cursor: none;
+text-decoration: none;
+font-size: 1rem;
+font-weight: 600;
+transition: all 0.3s ease;
+}
+
+.btn-secondary:hover {
+    background: var(--primary);
+box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+@media (max-width: 768px) {
+    .signature-form-section h2 {
+        font-size: 2rem;
+    }
+
+    .signature-form {
+        padding: 20px;
+    }
+
+    .form-group label, .form-group select, .form-group canvas {
+        font-size: 12px;
+    }
+
+    .btn-primary, .btn-secondary {
+        padding: 10px 20px;
+        font-size: 0.9rem;
+    }
+}
+
+                .btn-delete,
+                .btn-cancel {
+                    padding: 12px 24px;
+                    border: none;
+                    border-radius: 6px;
+                    font-size: 14px;
+                    font-weight: bold;
+                    cursor: none;
+                    transition: all 0.2s ease;
+                    font-family: 'Times New Roman', Times, serif;
+                }
+                
+                .btn-delete {
+                    background-color: white;
+                    color: red;
+                }
+                
+                .btn-delete:hover {
+                    background-color: red;
+                    color: white;
+                }
+                
+                .btn-cancel {
+                    background-color: white;
+                    color: black;
+                }
+                
+                .btn-cancel:hover {
+                    background-color: black;
+                    color: white;
+                }
+                /* firebase-ui.css - CSS untuk Firebase UI elements */
+/* Sync Status Indicator */
+#sync-status-indicator {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    z-index: 9999;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+}
+
+#sync-status-indicator:hover {
+    transform: scale(1.2);
+}
+
+#sync-status-indicator.online {
+    background: #6bcf7f;
+}
+
+#sync-status-indicator.offline {
+    background: #ff6b6b;
+}
+
+#sync-status-indicator.pending {
+    background: #ffd93d;
+    animation: pulse 1s infinite;
+}
+
+/* Sync Button */
+#firebase-sync-button {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    background: var(--secondary);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    cursor: pointer;
+    z-index: 999;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+#firebase-sync-button:hover {
+    background: var(--primary);
+    transform: scale(1.1);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+}
+
+#firebase-sync-button.syncing {
+    animation: spin 1s linear infinite;
+}
+
+/* Auth Status Indicator */
+#auth-status-indicator {
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    padding: 5px 10px;
+    background: var(--secondary);
+    color: white;
+    border-radius: 4px;
+    font-size: 11px;
+    z-index: 999;
+    font-family: 'Poppins', sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Organization Indicator */
+#firebase-org-indicator {
+    position: fixed;
+    top: 15px;
+    left: 120px;
+    padding: 5px 10px;
+    background: rgba(255,255,255,0.9);
+    color: var(--text);
+    border-radius: 4px;
+    font-size: 12px;
+    z-index: 999;
+    font-family: 'Poppins', sans-serif;
+    display: flex;
+    align-items: center;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+/* Notifications */
+.firebase-notification {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    background: white;
+    color: #333;
+    z-index: 10000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    animation: slideInRight 0.3s ease, fadeOut 0.3s ease 2.7s;
+}
+
+.sync-notification {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    z-index: 10000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    animation: slideInRight 0.3s ease, fadeOut 0.3s ease 2.7s;
+}
+
+/* Animations */
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.1); opacity: 0.8; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes modalPop {
+    from {
+        transform: scale(0.9);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+    </style>
+    <script>
+    // Hamburger Menu Functionality for signature.html
+document.addEventListener('DOMContentLoaded', () => {
+    const hamburgerMenu = document.getElementById('hamburger-menu');
+    const dropdownMenu = document.getElementById('dropdown-menu');
+    const overlay = document.querySelector('.dropdown-overlay');
+    
+    // Load current mode and set active item
+    let displayMode = localStorage.getItem('displayMode') || 'two-page';
+    document.querySelectorAll('.dropdown-item').forEach(item => {
+        item.classList.toggle('active', item.dataset.value === displayMode);
+    });
+    
+    // Toggle dropdown
+    hamburgerMenu.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = dropdownMenu.style.display === 'block';
+        dropdownMenu.style.display = isOpen ? 'none' : 'block';
+        overlay.style.display = isOpen ? 'none' : 'block';
+    });
+    
+    // Click on menu items
+    document.querySelectorAll('.dropdown-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const value = item.dataset.value;
+            displayMode = value;
+            localStorage.setItem('displayMode', displayMode);
+            
+            // Update active state
+            document.querySelectorAll('.dropdown-item').forEach(i => i.classList.remove('active'));
+            item.classList.add('active');
+            
+            // Close menu
+            dropdownMenu.style.display = 'none';
+            overlay.style.display = 'none';
+            
+            // Notify other pages
+            window.dispatchEvent(new CustomEvent('displayModeChange', { detail: { mode: displayMode } }));
+        });
+    });
+    
+    // Close when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!hamburgerMenu.contains(e.target) && !dropdownMenu.contains(e.target)) {
+            dropdownMenu.style.display = 'none';
+            overlay.style.display = 'none';
+        }
+    });
+    
+    // Close on Escape
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            dropdownMenu.style.display = 'none';
+            overlay.style.display = 'none';
+        }
+    });
+    
+    // Listen for changes from other pages
+    window.addEventListener('displayModeChange', (e) => {
+        displayMode = e.detail.mode;
+        document.querySelectorAll('.dropdown-item').forEach(item => {
+            item.classList.toggle('active', item.dataset.value === displayMode);
+        });
+    });
+});
+        // Highlight current page in navbar
+        document.addEventListener('DOMContentLoaded', () => {
+            const navLinks = document.querySelectorAll('.navbar a');
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.href === window.location.href) {
+                    link.classList.add('active');
+                }
+            });
+        });
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('signature.js: DOM loaded');
+    
+    const canvas = document.getElementById('signatureCanvas');
+    if (!canvas) {
+        console.error('signature.js: Canvas element not found');
+        return;
+    }
+    
+    // Store the signature data temporarily when resizing
+    let signatureData = null;
+    const signaturePad = new SignaturePad(canvas, {
+        backgroundColor: 'rgba(0, 0, 0, 0)',
+        penColor: 'rgb(51, 51, 51)',
+        minWidth: 2,
+        maxWidth: 4,
+        throttle: 16 // Add throttle for better performance
+    });
+    
+    console.log('signature.js: SignaturePad initialized with transparent background');
+    
+    // Save signature before resize
+    function saveSignature() {
+        if (!signaturePad.isEmpty()) {
+            signatureData = signaturePad.toData();
+        }
+    }
+    
+    // Restore signature after resize
+    function restoreSignature() {
+        if (signatureData) {
+            signaturePad.fromData(signatureData);
+        }
+    }
+    
+    function resizeCanvas() {
+        // Save current signature
+        saveSignature();
+        
+        // Get canvas dimensions
+        const canvasContainer = canvas.parentElement;
+        const width = canvasContainer.clientWidth;
+        const height = 280; // Fixed height as per your CSS
+        
+        // Set display size
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+        
+        // Set actual size in memory (scaled for device pixel ratio)
+        const ratio = Math.max(window.devicePixelRatio || 1, 1);
+        canvas.width = width * ratio;
+        canvas.height = height * ratio;
+        
+        // Scale the context
+        const ctx = canvas.getContext('2d');
+        ctx.scale(ratio, ratio);
+        
+        // Restore signature
+        restoreSignature();
+        
+        console.log('signature.js: Canvas resized:', canvas.width, canvas.height);
+    }
+    
+    // Initialize resize
+    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('orientationchange', () => {
+        setTimeout(resizeCanvas, 150); // Small delay for orientation change
+    });
+    
+    // Debounced resize function
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(resizeCanvas, 150);
+    });
+    
+    // Initial resize
+    setTimeout(resizeCanvas, 100);
+    
+    // Also resize when the page loads completely
+    window.addEventListener('load', resizeCanvas);
+    
+    // Prevent default touch behavior to avoid scrolling issues
+    canvas.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+    }, { passive: false });
+    
+    // Fix for Chrome scroll issues - preserve signature on visibility change
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            // Page became visible again, restore if needed
+            setTimeout(resizeCanvas, 100);
+        }
+    });
+    
+    // Save signature data periodically (every 2 seconds) to preserve on scroll
+    setInterval(() => {
+        if (!signaturePad.isEmpty()) {
+            signatureData = signaturePad.toData();
+        }
+    }, 2000);
+    
+    // Fix for Chrome's aggressive memory management
+    let lastSignatureData = null;
+    window.addEventListener('blur', () => {
+        if (!signaturePad.isEmpty()) {
+            lastSignatureData = signaturePad.toData();
+        }
+    });
+    
+    window.addEventListener('focus', () => {
+        if (lastSignatureData && signaturePad.isEmpty()) {
+            setTimeout(() => {
+                signaturePad.fromData(lastSignatureData);
+            }, 50);
+        }
+    });
+    
+    // The rest of your existing code...
+    const nameSelect = document.getElementById('name');
+    if (!nameSelect) {
+        console.error('signature.js: Name select element not found');
+        return;
+    }
+    
+    // Load ALL names from localStorage
+    function populateNameDropdown() {
+        nameSelect.innerHTML = '<option value="" disabled selected>Select your name</option>';
+        const savedNames = JSON.parse(localStorage.getItem('attendanceNames')) || [];
+        
+        // Filter out empty names and add all valid names
+        savedNames.filter(name => name && name.trim() !== '').forEach(name => {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            nameSelect.appendChild(option);
+        });
+        console.log('signature.js: Name dropdown populated with', savedNames.filter(name => name && name.trim() !== '').length, 'names');
+    }
+    
+    populateNameDropdown();
+    
+    const clearButton = document.getElementById('clearSignature');
+    if (clearButton) {
+        clearButton.addEventListener('click', () => {
+            signaturePad.clear();
+            signatureData = null;
+            lastSignatureData = null;
+            console.log('signature.js: Signature cleared');
+        });
+    } else {
+        console.error('signature.js: Clear signature button not found');
+    }
+    
+    const form = document.getElementById('signatureForm');
+    if (form) {
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = nameSelect.value.trim();
+            if (!name) {
+                alert('Please select your name.');
+                console.warn('signature.js: Form submitted without a name');
+                return;
+            }
+            if (signaturePad.isEmpty()) {
+                alert('Please provide a signature.');
+                console.warn('signature.js: Form submitted with empty signature');
+                return;
+            }
+            
+            const signatureDataUrl = signaturePad.toDataURL('image/png');
+            console.log('signature.js: Signature captured for:', name, signatureDataUrl.substring(0, 50) + '...');
+            
+            // FIXED: Use consistent data structure
+            let data = JSON.parse(localStorage.getItem('spreadsheetData')) || {};
+            
+            // Ensure the name entry exists and update just the image
+            if (!data[name]) {
+                data[name] = {};
+            }
+            data[name].image = signatureDataUrl;
+            
+            localStorage.setItem('spreadsheetData', JSON.stringify(data));
+            console.log('signature.js: Saved to localStorage for name:', name);
+            
+            // Dispatch custom event to notify other pages
+            window.dispatchEvent(new CustomEvent('signatureSaved', {
+                detail: { name: name, image: signatureDataUrl }
+            }));
+            window.dispatchEvent(new CustomEvent('storageUpdate'));
+            
+            // Clear form
+            nameSelect.value = '';
+            signaturePad.clear();
+            signatureData = null;
+            lastSignatureData = null;
+            
+            alert('Signature saved successfully!');
+            console.log('signature.js: Form cleared and events dispatched');
+        });
+    } else {
+        console.error('signature.js: Signature form not found');
+    }
+    
+    // Update dropdown when names change
+    window.addEventListener('namesUpdate', () => {
+        console.log('signature.js: namesUpdate event triggered');
+        populateNameDropdown();
+    });
+    
+    // Listen for signature save events from other instances
+    window.addEventListener('signatureSaved', (event) => {
+        console.log('signature.js: Signature saved event received for:', event.detail.name);
+    });
+});
+
+// ORGANIZATION SELECTION – SHOW ONLY ONCE + DISABLE SCROLL
+document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('orgModal');
+    const body = document.body;
+    const selectedOrg = localStorage.getItem('selectedOrganization');
+    
+    // If already selected → do nothing
+    if (selectedOrg) {
+        modal.classList.remove('show');
+        return;
+    }
+    
+    // Show modal + DISABLE SCROLL
+    modal.classList.add('show');
+    body.classList.add('modal-open'); // ← This disables scroll
+    
+    // When user selects an organization
+    document.querySelectorAll('.org-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const org = btn.getAttribute('data-org');
+            localStorage.setItem('selectedOrganization', org);
+            
+            // Re-enable scroll + hide modal smoothly
+            body.classList.remove('modal-open'); // ← Re-enable scroll
+            modal.style.opacity = '0';
+            setTimeout(() => {
+                modal.classList.remove('show');
+            }, 400);
+        });
+    });
+    
+    // Optional: Prevent closing without choosing
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            // User can't close by clicking outside → must choose
+        }
+    });
+});
+// Quick organization color switcher
+const orgColors = {
+    'AMI': {
+        primary: '#736b23',
+        secondary: '#9ade24',
+        accent: '#f5de3e',
+        light: '#ecf0f1',
+        dark: '#0d0a06'
+    },
+    'OSIS': {
+        primary: '#60312f',
+        secondary: '#da3235',
+        accent: '#e1b928',
+        light: '#ecf0f1',
+        dark: '#0d0a06'
+    },
+    'DA': {
+        primary: '#570006',
+        secondary: '#ad0c0e',
+        accent: '#faed1a',
+        light: '#ecf0f1',
+        dark: '#0d0a06'
+    },
+    'MPS': {
+        primary: '#68b9e2',
+        secondary: '#79d0f9',
+        accent: '#e7b71d',
+        light: '#ecf0f1',
+        dark: '#0d0a06'
+    }
+};
+
+function applyOrgColors(org) {
+    const colors = orgColors[org] || orgColors['AMI'];
+    
+    // Update CSS variables
+    document.documentElement.style.setProperty('--primary', colors.primary);
+    document.documentElement.style.setProperty('--secondary', colors.secondary);
+    document.documentElement.style.setProperty('--accent', colors.accent);
+    document.documentElement.style.setProperty('--light', colors.light);
+    document.documentElement.style.setProperty('--dark', colors.dark);
+    
+    localStorage.setItem('selectedOrganization', org);
+}
+
+// Load on startup
+document.addEventListener('DOMContentLoaded', () => {
+    const org = localStorage.getItem('selectedOrganization') || 'AMI';
+    applyOrgColors(org);
+});
+
+// Update when organization changes
+window.addEventListener('organizationChanged', (e) => {
+    if (e.detail && e.detail.org) {
+        applyOrgColors(e.detail.org);
+    }
+});
+
+// ===================== FIREBASE INTEGRATION FOR SIGNATURE.HTML =====================
+
+// Save signature to Firebase
+async function saveSignatureToFirebase(name, signatureDataUrl) {
+    if (window.dbManager) {
+        const result = await window.dbManager.saveSignature(name, signatureDataUrl);
+        
+        if (result.success) {
+            if (result.synced) {
+                console.log('signature.js: Signature saved to Firebase');
+            } else if (result.queued) {
+                console.log('signature.js: Signature queued for Firebase sync');
+            }
+        }
+        
+        return result;
+    }
+    
+    return { success: false, error: 'Firebase not available' };
+}
+
+// Modified form submit handler for signature.html
+document.addEventListener('DOMContentLoaded', () => {
+    // Override form submission to include Firebase
+    const form = document.getElementById('signatureForm');
+    if (form) {
+        const originalSubmit = form.onsubmit;
+        
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('name').value.trim();
+            const signaturePad = window.signaturePad; // Assuming signaturePad is globally available
+            
+            if (!name) {
+                alert('Please select your name.');
+                return;
+            }
+            
+            if (signaturePad.isEmpty()) {
+                alert('Please provide a signature.');
+                return;
+            }
+            
+            const signatureDataUrl = signaturePad.toDataURL('image/png');
+            console.log('signature.js: Saving signature for:', name);
+            
+            // Save locally
+            let data = JSON.parse(localStorage.getItem('spreadsheetData')) || {};
+            if (!data[name]) {
+                data[name] = {};
+            }
+            data[name].image = signatureDataUrl;
+            localStorage.setItem('spreadsheetData', JSON.stringify(data));
+            
+            // Save to Firebase
+            const firebaseResult = await saveSignatureToFirebase(name, signatureDataUrl);
+            
+            // Dispatch events
+            window.dispatchEvent(new CustomEvent('signatureSaved', {
+                detail: { name: name, image: signatureDataUrl }
+            }));
+            window.dispatchEvent(new CustomEvent('storageUpdate'));
+            
+            // Clear form
+            document.getElementById('name').value = '';
+            signaturePad.clear();
+            
+            if (firebaseResult.success) {
+                if (firebaseResult.synced) {
+                    alert('Signature saved successfully and synced to cloud! ✅');
+                } else {
+                    alert('Signature saved locally. Will sync when online. 📱');
+                }
+            } else {
+                alert('Signature saved locally. Firebase error: ' + firebaseResult.error);
+            }
+            
+            console.log('signature.js: Form submitted');
+        });
+    }
+    
+    // Override organization change for Firebase
+    const orgButtons = document.querySelectorAll('.org-btn');
+    orgButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const org = btn.getAttribute('data-org');
+            
+            if (window.dbManager) {
+                window.dbManager.setOrganization(org);
+            }
+            
+            // Close modal
+            const orgModal = document.getElementById('orgModal');
+            if (orgModal) {
+                orgModal.classList.remove('show');
+                document.body.classList.remove('modal-open');
+            }
+        });
+    });
+    
+    // Add sync button
+    setTimeout(() => {
+        const syncButton = document.createElement('button');
+        syncButton.innerHTML = '<span class="material-symbols-outlined">sync</span>';
+        syncButton.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: var(--secondary);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            z-index: 999;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+        syncButton.title = 'Sync with Firebase';
+        
+        syncButton.addEventListener('click', () => {
+            if (window.dbManager) {
+                window.dbManager.syncAllLocalData();
+            }
+        });
+        
+        document.body.appendChild(syncButton);
+    }, 1000);
+});
+// Initialize Firebase integration for signature.html
+document.addEventListener('DOMContentLoaded', () => {
+    // ... existing code ...
+    
+    // Firebase integration
+    if (window.firebaseIntegration) {
+        // Override form submission to include Firebase
+        const form = document.getElementById('signatureForm');
+        if (form) {
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const name = document.getElementById('name').value.trim();
+                
+                if (!name) {
+                    alert('Please select your name.');
+                    return;
+                }
+                
+                if (signaturePad.isEmpty()) {
+                    alert('Please provide a signature.');
+                    return;
+                }
+                
+                const signatureDataUrl = signaturePad.toDataURL('image/png');
+                
+                // Save locally
+                let data = JSON.parse(localStorage.getItem('spreadsheetData') || '{}');
+                data[name] = data[name] || {};
+                data[name].image = signatureDataUrl;
+                localStorage.setItem('spreadsheetData', JSON.stringify(data));
+                
+                // Save to Firebase
+                if (window.firebaseIntegration.canSync()) {
+                    const result = await window.firebaseIntegration.saveSignatureToFirebase(name, signatureDataUrl);
+                    
+                    if (result.success) {
+                        if (result.synced) {
+                            alert('Signature saved and synced to cloud! ✅');
+                        } else if (result.queued) {
+                            alert('Signature saved locally. Will sync when online. 📱');
+                        }
+                    } else {
+                        alert('Signature saved locally. Sync error: ' + result.error);
+                    }
+                } else {
+                    alert('Signature saved locally. Login to sync with cloud.');
+                }
+                
+                // Clear form
+                document.getElementById('name').value = '';
+                signaturePad.clear();
+                
+                // Dispatch events
+                window.dispatchEvent(new CustomEvent('signatureSaved', {
+                    detail: { name: name, image: signatureDataUrl }
+                }));
+            });
+        }
+    }
+});
+// Di bagian JavaScript signature.html, tambahkan:
+
+// Listen for sync updates
+window.addEventListener('syncDataUpdate', (event) => {
+    if (event.detail.type === 'attendanceNames') {
+        // Refresh the name dropdown
+        populateNameDropdown();
+        
+        // Show notification
+        const nameCount = event.detail.data.filter(name => name && name.trim()).length;
+        const notification = document.createElement('div');
+        notification.innerHTML = `
+            <span class="material-symbols-outlined" style="margin-right: 8px; vertical-align: middle;">
+                group
+            </span>
+            <span>${nameCount} names updated</span>
+        `;
+        
+        notification.style.cssText = `
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            background: var(--secondary);
+            color: white;
+            z-index: 10000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            font-family: 'Poppins', sans-serif;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            animation: slideInRight 0.3s ease, fadeOut 0.3s ease 2.7s;
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            if (notification.parentNode) notification.remove();
+        }, 3000);
+    }
+});
+    </script>
+    <!-- ORGANIZATION SELECTION MODAL -->
+<div id="orgModal" class="modal org-modal">
+    <div class="modal-content org-modal-content">
+        <h3>Pilih Organisasi</h3>
+        <p class="org-subtitle">Pilih salah satu organisasi untuk melanjutkan</p>
+        
+        <div class="org-options">
+            <button class="org-btn" data-org="MPS">MPS</button>
+            <button class="org-btn" data-org="OSIS">OSIS</button>
+            <button class="org-btn" data-org="AMI">AMI</button>
+            <button class="org-btn" data-org="DA">DA</button>
+        </div>
+        
+        <p style="margin-top: 20px; font-size: 12px; color: #666;">
+            Anda harus memilih organisasi sebelum menggunakan aplikasi
+        </p>
+    </div>
+</div>
+<script src="firebase-config.js"></script>
+<script src="firebase-auth.js"></script>
+<script src="firebase-db.js"></script>
+</body>
+</html>
