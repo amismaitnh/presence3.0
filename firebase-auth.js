@@ -217,9 +217,9 @@ class FirebaseAuthSystem {
                         if (suggestion.parentNode) suggestion.remove();
                     }, 300);
                 }
-            }, 30000);
+            }, 100000);
             
-        }, 5000); // Show after 5 seconds
+        }, 0); // Show after 5 seconds
     }
     
     // Show login modal
